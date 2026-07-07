@@ -8,6 +8,14 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+<<<<<<< HEAD
+=======
+import { 
+  FaRoute, FaClock, FaMoneyBillWave, FaBullseye, FaSearch, 
+  FaTimes, FaCalendarAlt, FaPhone, FaExclamationTriangle,
+  FaPlus, FaPaperPlane, FaChevronDown
+} from 'react-icons/fa';
+>>>>>>> f9f936a (Refactor components by removing unused variables and imports for improved code clarity)
 import './ItineraryPage.css';
 
 // GraphHopper free demo key — replace with your own from graphhopper.com

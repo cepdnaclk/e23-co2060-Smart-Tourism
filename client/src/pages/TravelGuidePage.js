@@ -1,6 +1,13 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { guideService, bookingService } from '../services';
+<<<<<<< HEAD
+=======
+import SearchBar from '../components/SearchBar';
+import ReviewSection from '../components/ReviewSection';
+import { FaHistory, FaCheckCircle, FaPaperPlane, FaClipboardList, FaComments, FaLanguage, FaIdCard, FaStar } from 'react-icons/fa';
+import { formatUserId } from '../utils/formatters';
+>>>>>>> f9f936a (Refactor components by removing unused variables and imports for improved code clarity)
 import './TravelGuidePage.css';
 import SearchBar from '../components/SearchBar';
 

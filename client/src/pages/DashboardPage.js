@@ -1,10 +1,37 @@
 import React, { useCallback, useEffect, useState } from 'react';
+<<<<<<< HEAD
 import { useAuth } from '../context/AuthContext';
 import { profileService, systemService } from '../services';
 import './DashboardPage.css';
 
 const DashboardPage = () => {
   const { user, logout } = useAuth();
+=======
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { profileService, systemService, bookingService, itineraryService } from '../services';
+import { formatUserId } from '../utils/formatters';
+import ChangePasswordModal from '../components/ChangePasswordModal';
+import EditProfileModal from '../components/EditProfileModal';
+import './DashboardPage.css';
+
+import { 
+  FaMapMarkedAlt, 
+  FaListAlt, 
+  FaUsers, 
+  FaSignOutAlt, 
+  FaUserTie,
+  FaBriefcase,
+  FaHistory,
+  FaClock,
+  FaCheckCircle,
+  FaTrashAlt
+} from 'react-icons/fa';
+
+const DashboardPage = () => {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+>>>>>>> f9f936a (Refactor components by removing unused variables and imports for improved code clarity)
   const [systemStatus, setSystemStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

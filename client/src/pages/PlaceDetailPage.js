@@ -1,20 +1,34 @@
+<<<<<<< HEAD
 import React, { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { usePlace } from '../context/PlaceContext';
 import { useAuth } from '../context/AuthContext';
 import ReviewForm from '../components/ReviewForm';
 import { reviewService } from '../services';
+=======
+import React, { useEffect, useState } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { usePlace } from '../context/PlaceContext';
+import { useAuth } from '../context/AuthContext';
+import ReviewSection from '../components/ReviewSection';
+import { FaMapMarkerAlt, FaPlus, FaStar } from 'react-icons/fa';
+>>>>>>> f9f936a (Refactor components by removing unused variables and imports for improved code clarity)
 import './PlaceDetailPage.css';
 
 const PlaceDetailPage = () => {
   const { id } = useParams();
   const { getPlaceById, loading: placesLoading } = usePlace();
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
   const [place, setPlace] = useState(null);
+<<<<<<< HEAD
   const [reviews, setReviews] = useState([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
+=======
+  const [imageUrl, setImageUrl] = useState(location.state?.passedImageUrl || null);
+  const [, setShowReviewModal] = useState(false);
+>>>>>>> f9f936a (Refactor components by removing unused variables and imports for improved code clarity)
 
   const fetchReviews = useCallback(async () => {
     try {

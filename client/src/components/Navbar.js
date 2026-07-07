@@ -2,17 +2,64 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { bookingService } from '../services';
+<<<<<<< HEAD
 import { FaMapMarkerAlt, FaCompass, FaUser, FaSignOutAlt, FaHome } from 'react-icons/fa';
+=======
+import { FaMapMarkerAlt, FaCompass, FaUser, FaSignOutAlt, FaHome, FaMoon, FaSun, FaAtlas, FaBriefcase, FaComments, FaMapMarkedAlt } from 'react-icons/fa';
+import { motion } from 'framer-motion';
+>>>>>>> f9f936a (Refactor components by removing unused variables and imports for improved code clarity)
 import './Navbar.css';
 
 const Navbar = () => {
   const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState(0);
+<<<<<<< HEAD
 
   useEffect(() => {
     let interval;
     if (isAuthenticated() && user?.role === 'guide') {
+=======
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark') {
+      setIsDarkMode(true);
+      document.body.classList.add('dark-mode');
+      document.documentElement.classList.add('dark-mode');
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    if (isDarkMode) {
+      document.body.classList.remove('dark-mode');
+      document.documentElement.classList.remove('dark-mode');
+      localStorage.setItem('theme', 'light');
+      setIsDarkMode(false);
+    } else {
+      document.body.classList.add('dark-mode');
+      document.documentElement.classList.add('dark-mode');
+      localStorage.setItem('theme', 'dark');
+      setIsDarkMode(true);
+    }
+  };
+
+  useEffect(() => {
+    let interval;
+    if (isAuthenticated() && user) {
+      // Skip fetching notifications when on pages that display them
+      const shouldSkipFetch = 
+        (user.role === 'guide' && location.pathname === '/clients') ||
+        (user.role === 'tourist' && (location.pathname === '/travel-guides' || location.pathname === '/dashboard'));
+
+      if (shouldSkipFetch) {
+        setNotifications(0);
+        return;
+      }
+
+>>>>>>> f9f936a (Refactor components by removing unused variables and imports for improved code clarity)
       const fetchCount = async () => {
         try {
           const res = await bookingService.getNotificationCount(user.id);
