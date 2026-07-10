@@ -11,9 +11,34 @@ import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { 
   FaRoute, FaClock, FaMoneyBillWave, FaBullseye, FaSearch, 
   FaTimes, FaCalendarAlt, FaPhone, FaImage, FaExclamationTriangle,
-  FaMapMarkerAlt, FaPlus, FaTrash, FaPaperPlane, FaChevronDown
+  FaMapMarkerAlt, FaPlus, FaTrash, FaPaperPlane, FaChevronDown,
+  FaSnowflake, FaSun, FaCompass
 } from 'react-icons/fa';
 import './ItineraryPage.css';
+
+// Season-based place presets for Sri Lanka
+const WINTER_PLACES = [
+  "Mirissa Beach",
+  "Galle Fort",
+  "Unawatuna Beach",
+  "Ella Rock",
+  "Nine Arch Bridge",
+  "Adam's Peak (Sri Pada)",
+  "Nuwara Eliya",
+  "Horton Plains National Park",
+  "Mount Lavinia Beach",
+  "Yala National Park"
+];
+
+const SUMMER_PLACES = [
+  "Sigiriya Rock Fortress",
+  "Anuradhapura Ancient City",
+  "Polonnaruwa Ancient City",
+  "Dambulla Cave Temple",
+  "Temple of the Tooth (Sri Dalada Maligawa)",
+  "Kandy Lake",
+  "Peradeniya Botanical Gardens"
+];
 
 // GraphHopper free demo key — replace with your own from graphhopper.com
 const GRAPHHOPPER_API_KEY = 'f8512521-29f8-40cc-ad0a-64bed3f3c40b';
@@ -107,7 +132,7 @@ const ItineraryPage = () => {
   const [itineraries, setItineraries] = useState([]);
   const [selectedItinerary, setSelectedItinerary] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [newItinerary, setNewItinerary] = useState({ title: '', startDate: '', endDate: '' });
+  const [newItinerary, setNewItinerary] = useState({ title: '', startDate: '', endDate: '', season: 'none' });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [availablePlaces, setAvailablePlaces] = useState([]);
@@ -227,17 +252,26 @@ const ItineraryPage = () => {
     e.preventDefault();
     if (!newItinerary.title) return setError('Please enter a title');
 
+    // Find the places to add based on the selected season
+    let selectedPlaces = [];
+    if (newItinerary.season === 'winter') {
+      selectedPlaces = availablePlaces.filter(p => WINTER_PLACES.includes(p.name));
+    } else if (newItinerary.season === 'summer') {
+      selectedPlaces = availablePlaces.filter(p => SUMMER_PLACES.includes(p.name));
+    }
+
     try {
       const response = await itineraryService.createItinerary({
         tourist_id: user.id,
         title: newItinerary.title,
         start_date: newItinerary.startDate || null,
-        end_date: newItinerary.endDate || null
+        end_date: newItinerary.endDate || null,
+        places: selectedPlaces.map(p => ({ id: p.id }))
       });
       const created = response.data.itinerary || response.data.data;
       setItineraries([...itineraries, created]);
       setSelectedItinerary(created);
-      setNewItinerary({ title: '', startDate: '', endDate: '' });
+      setNewItinerary({ title: '', startDate: '', endDate: '', season: 'none' });
       setSuccess('Itinerary created successfully!');
       setShowCreateModal(false);
       
@@ -1212,6 +1246,59 @@ const ItineraryPage = () => {
                     />
                   </div>
                 </div>
+
+                <div className="form-group" style={{ marginTop: '20px' }}>
+                  <label style={{ fontWeight: '700', fontSize: '0.95rem' }}>Select a Season (Optional Preset)</label>
+                  <div className="season-selector-cards">
+                    <div 
+                      className={`season-card ${newItinerary.season === 'none' ? 'active' : ''}`}
+                      onClick={() => setNewItinerary({ ...newItinerary, season: 'none' })}
+                    >
+                      <div className="season-card-icon"><FaCompass /></div>
+                      <div className="season-card-title">None</div>
+                      <div className="season-card-desc">Empty canvas</div>
+                    </div>
+                    <div 
+                      className={`season-card winter ${newItinerary.season === 'winter' ? 'active' : ''}`}
+                      onClick={() => setNewItinerary({ ...newItinerary, season: 'winter' })}
+                    >
+                      <div className="season-card-icon"><FaSnowflake /></div>
+                      <div className="season-card-title">Winter Preset</div>
+                      <div className="season-card-desc">Dec - Apr (South & West Coast)</div>
+                    </div>
+                    <div 
+                      className={`season-card summer ${newItinerary.season === 'summer' ? 'active' : ''}`}
+                      onClick={() => setNewItinerary({ ...newItinerary, season: 'summer' })}
+                    >
+                      <div className="season-card-icon"><FaSun /></div>
+                      <div className="season-card-title">Summer Preset</div>
+                      <div className="season-card-desc">May - Oct (Cultural & East)</div>
+                    </div>
+                  </div>
+                </div>
+
+                {newItinerary.season !== 'none' && (
+                  <div className="seasonal-preview-section">
+                    <h4 className="seasonal-preview-title">
+                      Automatically Adding {newItinerary.season === 'winter' ? WINTER_PLACES.length : SUMMER_PLACES.length} Places:
+                    </h4>
+                    <div className="seasonal-preview-list">
+                      {availablePlaces
+                        .filter(p => newItinerary.season === 'winter' ? WINTER_PLACES.includes(p.name) : SUMMER_PLACES.includes(p.name))
+                        .map(p => (
+                          <div key={p.id} className="seasonal-preview-item">
+                            {p.image_url ? (
+                              <img src={p.image_url} alt={p.name} className="seasonal-preview-img" />
+                            ) : (
+                              <span className="seasonal-preview-emoji">📍</span>
+                            )}
+                            <span className="seasonal-preview-name">{p.name}</span>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
                 <button type="submit" className="btn btn-primary btn-large" style={{ marginTop: '20px', borderRadius: '12px' }}>
                   <FaPlus /> Create Itinerary
                 </button>
