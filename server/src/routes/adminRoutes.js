@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/adminController');
+const { authenticate, requireRole } = require('../middleware/auth');
+
+router.use(authenticate, requireRole('admin'));
 
 // Tourist management
 router.get('/tourists', adminController.getTourists);

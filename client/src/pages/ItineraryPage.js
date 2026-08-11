@@ -229,7 +229,6 @@ const ItineraryPage = () => {
 
     try {
       const response = await itineraryService.createItinerary({
-        tourist_id: user.id,
         title: newItinerary.title,
         start_date: newItinerary.startDate || null,
         end_date: newItinerary.endDate || null
@@ -334,7 +333,6 @@ const ItineraryPage = () => {
       await bookingService.createBooking({
         itineraryId: selectedItinerary.id,
         guideId,
-        touristId: user.id,
         notes
       });
       setSuccess('Guide booking request sent successfully! You can track it below.');
@@ -351,7 +349,7 @@ const ItineraryPage = () => {
   const handleCancelBooking = async (bookingId) => {
     try {
       setError('');
-      await bookingService.cancelBooking(bookingId, { authorId: user.id });
+      await bookingService.cancelBooking(bookingId);
       setSuccess('Booking request cancelled successfully.');
       await fetchTouristBookings();
     } catch (err) {
@@ -363,7 +361,7 @@ const ItineraryPage = () => {
   const handleDeleteBooking = async (bookingId) => {
     try {
       setError('');
-      await bookingService.deleteBooking(bookingId, { authorId: user.id });
+      await bookingService.deleteBooking(bookingId);
       setSuccess('Booking request deleted successfully.');
       await fetchTouristBookings();
     } catch (err) {
@@ -393,7 +391,6 @@ const ItineraryPage = () => {
 
     try {
       await bookingService.sendBookingMessage(bookingId, {
-        authorId: user.id,
         message: message.trim()
       });
       setMessageTextByBooking(prev => ({ ...prev, [bookingId]: '' }));

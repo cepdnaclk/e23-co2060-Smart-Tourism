@@ -72,7 +72,6 @@ const ReviewSection = ({ targetId, type }) => {
             setSubmitting(true);
             setError('');
             const data = {
-                tourist_id: userId,
                 rating,
                 comment
             };

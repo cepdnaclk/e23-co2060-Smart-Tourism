@@ -55,7 +55,7 @@ const TravelGuidePage = () => {
     try {
       setError('');
       setSuccess('');
-      await bookingService.deleteBooking(bookingId, { authorId: user.id });
+      await bookingService.deleteBooking(bookingId);
       setSuccess('Booking request deleted successfully.');
       fetchBookings();
     } catch (err) {
@@ -68,7 +68,7 @@ const TravelGuidePage = () => {
     try {
       setError('');
       setSuccess('');
-      await bookingService.cancelBooking(bookingId, { authorId: user.id });
+      await bookingService.cancelBooking(bookingId);
       setSuccess('Booking request cancelled successfully.');
       fetchBookings();
     } catch (err) {
@@ -134,7 +134,6 @@ const TravelGuidePage = () => {
       setError('');
       setSuccess('');
       await bookingService.sendBookingMessage(bookingId, {
-        authorId: user.id,
         message: message.trim()
       });
       setMessageTextByBooking(prev => ({ ...prev, [bookingId]: '' }));

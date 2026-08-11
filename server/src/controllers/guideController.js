@@ -1,4 +1,5 @@
 const userRepo = require('../repositories/userRepo');
+const itineraryRepo = require('../repositories/itineraryRepo');
 
 /**
  * GUIDE CONTROLLER
@@ -30,6 +31,10 @@ async function getAllGuides(req, res) {
 async function getGuideById(req, res) {
     try {
         const { id } = req.params;
+        const user = await userRepo.getUserById(id);
+        if (!user || user.role !== 'guide') {
+            return res.status(404).json({ error: 'Guide not found' });
+        }
         const guide = await userRepo.getUserProfile(id);
         
         if (!guide) {
@@ -56,6 +61,14 @@ async function suggestGuidesForItinerary(req, res) {
         
         if (!itineraryId) {
             return res.status(400).json({ error: 'itineraryId is required' });
+        }
+
+        const itinerary = await itineraryRepo.getItineraryById(itineraryId);
+        if (!itinerary) {
+            return res.status(404).json({ error: 'Itinerary not found' });
+        }
+        if (Number(itinerary.tourist_id) !== req.user.id) {
+            return res.status(403).json({ error: 'You can only request suggestions for your own itinerary' });
         }
 
         const suggestedGuides = await userRepo.suggestGuidesForItinerary(itineraryId);
@@ -89,13 +102,10 @@ async function getGuideReviews(req, res) {
 async function createGuideReview(req, res) {
     try {
         const { id } = req.params;
-        const { tourist_id, rating, comment } = req.body;
+        const { rating, comment } = req.body;
 
         if (!id || isNaN(id)) {
             return res.status(400).json({ success: false, error: 'Invalid guide ID' });
-        }
-        if (!tourist_id || isNaN(tourist_id)) {
-            return res.status(400).json({ success: false, error: 'tourist_id is required' });
         }
         if (!rating || rating < 1 || rating > 5) {
             return res.status(400).json({ success: false, error: 'Rating must be between 1 and 5' });
@@ -103,7 +113,7 @@ async function createGuideReview(req, res) {
 
         const review = await userRepo.createGuideReview(
             parseInt(id),
-            parseInt(tourist_id),
+            req.user.id,
             parseInt(rating),
             comment || ''
         );
@@ -117,8 +127,16 @@ async function createGuideReview(req, res) {
 
 async function deleteGuideReview(req, res) {
     try {
-        const { reviewId } = req.params;
-        const result = await userRepo.deleteGuideReview(parseInt(reviewId));
+        const reviewId = parseInt(req.params.reviewId);
+        const existingReview = await userRepo.getGuideReviewById(reviewId);
+        if (!existingReview) {
+            return res.status(404).json({ success: false, error: 'Review not found' });
+        }
+        if (Number(existingReview.tourist_id) !== req.user.id) {
+            return res.status(403).json({ success: false, error: 'You can only delete your own reviews' });
+        }
+
+        const result = await userRepo.deleteGuideReview(reviewId);
         if (!result) {
             return res.status(404).json({ success: false, error: 'Review not found' });
         }

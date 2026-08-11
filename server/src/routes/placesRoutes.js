@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const placesController = require('../controllers/placesController');
+const { authenticate, requireRole } = require('../middleware/auth');
 
 /**
  * PLACES ROUTES
@@ -18,8 +19,8 @@ const placesController = require('../controllers/placesController');
 router.get('/', placesController.getPlaces);
 
 router.get('/:id/reviews', placesController.getPlaceReviews);
-router.post('/:id/reviews', placesController.createPlaceReview);
-router.delete('/:id/reviews/:reviewId', placesController.deletePlaceReview);
+router.post('/:id/reviews', authenticate, requireRole('tourist'), placesController.createPlaceReview);
+router.delete('/:id/reviews/:reviewId', authenticate, requireRole('tourist'), placesController.deletePlaceReview);
 
 /**
  * GET /api/places/:id

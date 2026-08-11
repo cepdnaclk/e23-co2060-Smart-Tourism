@@ -95,7 +95,6 @@ const ClientsPage = () => {
 
     try {
       await bookingService.sendBookingMessage(bookingId, {
-        authorId: user.id,
         message
       });
       setMessageTextByBooking(prev => ({

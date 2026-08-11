@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const itineraryController = require('../controllers/itineraryController');
+const { authenticate, requireRole } = require('../middleware/auth');
+
+router.use(authenticate, requireRole('tourist'));
 
 /**
  * ITINERARIES ROUTES

@@ -121,6 +121,7 @@
   "scripts": {
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
+    "test": "node --test",
     "db:migrate": "node src/database/runMigrations.js",
     "db:seed": "node src/database/seedData.js",
     "db:reset": "node src/database/resetDb.js"

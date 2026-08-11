@@ -260,6 +260,14 @@ async function deletePlaceReview(reviewId) {
     }
 }
 
+async function getPlaceReviewById(reviewId) {
+    const result = await db.query(
+        'SELECT id, place_id, tourist_id FROM place_reviews WHERE id = $1',
+        [reviewId]
+    );
+    return result.rows[0] || null;
+}
+
 module.exports = {
     getAllPlaces,
     getPlaceById,
@@ -267,5 +275,6 @@ module.exports = {
     getPlacesByCategory,
     getPlaceReviews,
     createPlaceReview,
-    deletePlaceReview
+    deletePlaceReview,
+    getPlaceReviewById
 };

@@ -102,13 +102,10 @@ async function getPlaceReviews(req, res) {
 async function createPlaceReview(req, res) {
     try {
         const { id } = req.params;
-        const { tourist_id, rating, title, comment } = req.body;
+        const { rating, title, comment } = req.body;
 
         if (!id || isNaN(id)) {
             return res.status(400).json({ success: false, error: 'Invalid place ID' });
-        }
-        if (!tourist_id || isNaN(tourist_id)) {
-            return res.status(400).json({ success: false, error: 'tourist_id is required' });
         }
         if (!rating || rating < 1 || rating > 5) {
             return res.status(400).json({ success: false, error: 'Rating must be between 1 and 5' });
@@ -119,7 +116,7 @@ async function createPlaceReview(req, res) {
 
         const review = await placesRepo.createPlaceReview(
             parseInt(id),
-            parseInt(tourist_id),
+            req.user.id,
             parseInt(rating),
             title,
             comment || ''
@@ -133,8 +130,16 @@ async function createPlaceReview(req, res) {
 }
 async function deletePlaceReview(req, res) {
     try {
-        const { reviewId } = req.params;
-        const result = await placesRepo.deletePlaceReview(parseInt(reviewId));
+        const reviewId = parseInt(req.params.reviewId);
+        const existingReview = await placesRepo.getPlaceReviewById(reviewId);
+        if (!existingReview) {
+            return res.status(404).json({ success: false, error: 'Review not found' });
+        }
+        if (Number(existingReview.tourist_id) !== req.user.id) {
+            return res.status(403).json({ success: false, error: 'You can only delete your own reviews' });
+        }
+
+        const result = await placesRepo.deletePlaceReview(reviewId);
         if (!result) {
             return res.status(404).json({ success: false, error: 'Review not found' });
         }

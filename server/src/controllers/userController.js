@@ -114,12 +114,6 @@ async function updateGuideProfile(req, res) {
 async function deleteAccount(req, res) {
     try {
         const { id } = req.params;
-        const token = req.headers.authorization?.split(' ')[1];
-        
-        if (!token) {
-            return res.status(401).json({ error: 'No authorization token provided' });
-        }
-
         // Delete the user
         const deletedUser = await userRepo.deleteUser(id);
 

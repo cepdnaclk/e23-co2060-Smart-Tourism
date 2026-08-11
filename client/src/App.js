@@ -46,7 +46,7 @@ function App() {
               <Route 
                 path="/itinerary" 
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute allowedRoles={['tourist']}>
                     <ItineraryPage />
                   </ProtectedRoute>
                 } 
@@ -54,7 +54,7 @@ function App() {
               <Route 
                 path="/clients" 
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute allowedRoles={['guide']}>
                     <ClientsPage />
                   </ProtectedRoute>
                 } 
@@ -62,7 +62,7 @@ function App() {
               <Route 
                 path="/admin-dashboard" 
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute allowedRoles={['admin']}>
                     <AdminDashboard />
                   </ProtectedRoute>
                 } 

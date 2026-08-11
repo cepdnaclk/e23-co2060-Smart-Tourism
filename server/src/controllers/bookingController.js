@@ -2,15 +2,43 @@ const bookingRepo = require('../repositories/bookingRepo');
 const userRepo = require('../repositories/userRepo');
 const itineraryRepo = require('../repositories/itineraryRepo');
 
+async function getAuthorizedBooking(req, res, bookingId, { allowAdmin = true } = {}) {
+    const booking = await bookingRepo.getBookingById(bookingId);
+    if (!booking) {
+        res.status(404).json({ error: 'Booking not found' });
+        return null;
+    }
+
+    const isTourist = req.user.role === 'tourist' && Number(booking.tourist_id) === req.user.id;
+    const isGuide = req.user.role === 'guide' && Number(booking.guide_id) === req.user.id;
+    const isAdmin = allowAdmin && req.user.role === 'admin';
+    if (!isTourist && !isGuide && !isAdmin) {
+        res.status(403).json({ error: 'You do not have access to this booking' });
+        return null;
+    }
+    return booking;
+}
+
+async function getOwnedItinerary(req, res, itineraryId) {
+    const itinerary = await itineraryRepo.getItineraryById(itineraryId);
+    if (!itinerary) {
+        res.status(404).json({ error: 'Itinerary not found' });
+        return null;
+    }
+    if (Number(itinerary.tourist_id) !== req.user.id) {
+        res.status(403).json({ error: 'You can only book guides for your own itinerary' });
+        return null;
+    }
+    return itinerary;
+}
+
 async function requestGuidesForItinerary(req, res) {
     try {
         const { itineraryId } = req.params;
-        const { touristId, notes } = req.body;
+        const { notes } = req.body;
 
-        const itinerary = await itineraryRepo.getItineraryById(itineraryId);
-        if (!itinerary) {
-            return res.status(404).json({ error: 'Itinerary not found' });
-        }
+        const itinerary = await getOwnedItinerary(req, res, itineraryId);
+        if (!itinerary) return;
 
         const locationNames = [...new Set(itinerary.places.map(p => p.name))];
 
@@ -25,7 +53,7 @@ async function requestGuidesForItinerary(req, res) {
 
         const createdBookings = [];
         for (const guide of potentialGuides) {
-            const booking = await bookingRepo.createBooking(itineraryId, guide.user_id, touristId, notes);
+            const booking = await bookingRepo.createBooking(itineraryId, guide.user_id, req.user.id, notes);
             createdBookings.push(booking);
         }
 
@@ -42,13 +70,15 @@ async function requestGuidesForItinerary(req, res) {
 
 async function createBooking(req, res) {
     try {
-        const { itineraryId, guideId, touristId, notes } = req.body;
+        const { itineraryId, guideId, notes } = req.body;
         
-        if (!itineraryId || !guideId || !touristId) {
+        if (!itineraryId || !guideId) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
-        const booking = await bookingRepo.createBooking(itineraryId, guideId, touristId, notes);
+        if (!await getOwnedItinerary(req, res, itineraryId)) return;
+
+        const booking = await bookingRepo.createBooking(itineraryId, guideId, req.user.id, notes);
         res.status(201).json({ success: true, booking });
     } catch (error) {
         res.status(500).json({ error: 'Failed to create booking' });
@@ -80,6 +110,12 @@ async function quotePrice(req, res) {
         const { id } = req.params;
         const { price, currency } = req.body;
 
+        const existingBooking = await getAuthorizedBooking(req, res, id);
+        if (!existingBooking) return;
+        if (existingBooking.status !== 'pending') {
+            return res.status(400).json({ error: 'Only pending bookings can be quoted' });
+        }
+
         if (!price) {
             return res.status(400).json({ error: 'Price is required' });
         }
@@ -95,6 +131,11 @@ async function quotePrice(req, res) {
 async function acceptQuote(req, res) {
     try {
         const { id } = req.params;
+        const existingBooking = await getAuthorizedBooking(req, res, id);
+        if (!existingBooking) return;
+        if (existingBooking.status !== 'quoted') {
+            return res.status(400).json({ error: 'Only quoted bookings can be accepted' });
+        }
         const booking = await bookingRepo.updateBookingStatus(id, 'accepted');
         res.status(200).json({ success: true, booking });
     } catch (error) {
@@ -105,6 +146,12 @@ async function acceptQuote(req, res) {
 async function rejectQuote(req, res) {
     try {
         const { id } = req.params;
+        const existingBooking = await getAuthorizedBooking(req, res, id);
+        if (!existingBooking) return;
+        const allowedStatus = req.user.role === 'guide' ? 'pending' : 'quoted';
+        if (existingBooking.status !== allowedStatus) {
+            return res.status(400).json({ error: `Only ${allowedStatus} bookings can be rejected by this user` });
+        }
         const booking = await bookingRepo.updateBookingStatus(id, 'rejected');
         res.status(200).json({ success: true, booking });
     } catch (error) {
@@ -115,6 +162,7 @@ async function rejectQuote(req, res) {
 async function getBookingMessages(req, res) {
     try {
         const { id } = req.params;
+        if (!await getAuthorizedBooking(req, res, id, { allowAdmin: false })) return;
         const messages = await bookingRepo.getBookingMessages(id);
         res.status(200).json({ success: true, messages });
     } catch (error) {
@@ -126,14 +174,15 @@ async function getBookingMessages(req, res) {
 async function sendBookingMessage(req, res) {
     try {
         const { id } = req.params;
-        const authorId = req.user?.id || req.body.authorId;
         const { message } = req.body;
 
-        if (!authorId || !message) {
-            return res.status(400).json({ error: 'authorId and message are required' });
+        if (!message || !message.trim()) {
+            return res.status(400).json({ error: 'Message is required' });
         }
 
-        const savedMessage = await bookingRepo.createBookingMessage(id, authorId, message);
+        if (!await getAuthorizedBooking(req, res, id, { allowAdmin: false })) return;
+
+        const savedMessage = await bookingRepo.createBookingMessage(id, req.user.id, message.trim());
         res.status(201).json({ success: true, message: savedMessage });
     } catch (error) {
         console.error('Send booking message error:', error);
@@ -144,19 +193,8 @@ async function sendBookingMessage(req, res) {
 async function cancelBooking(req, res) {
     try {
         const { id } = req.params;
-        const userId = req.user?.id || req.body.authorId || null;
-
-        if (!userId) {
-            return res.status(401).json({ error: 'Unauthorized' });
-        }
-
-        const booking = await bookingRepo.getBookingById(id);
-        if (!booking) {
-            return res.status(404).json({ error: 'Booking not found' });
-        }
-        if (booking.tourist_id !== userId) {
-            return res.status(403).json({ error: 'You can only cancel your own bookings' });
-        }
+        const booking = await getAuthorizedBooking(req, res, id);
+        if (!booking) return;
 
         if (!['pending', 'quoted'].includes(booking.status)) {
             return res.status(400).json({ error: 'Cannot cancel this booking at this stage' });
@@ -173,19 +211,8 @@ async function cancelBooking(req, res) {
 async function deleteBooking(req, res) {
     try {
         const { id } = req.params;
-        const userId = req.user?.id || req.body.authorId || null;
-
-        if (!userId) {
-            return res.status(401).json({ error: 'Unauthorized' });
-        }
-
-        const booking = await bookingRepo.getBookingById(id);
-        if (!booking) {
-            return res.status(404).json({ error: 'Booking not found' });
-        }
-        if (booking.tourist_id !== userId) {
-            return res.status(403).json({ error: 'You can only delete your own bookings' });
-        }
+        const booking = await getAuthorizedBooking(req, res, id);
+        if (!booking) return;
         if (!['cancelled', 'rejected'].includes(booking.status)) {
             return res.status(400).json({ error: 'Only cancelled or rejected bookings can be deleted' });
         }

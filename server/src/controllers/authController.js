@@ -27,6 +27,10 @@ const register = async (req, res) => {
     try {
         const { email, password, role, full_name, contact_number, covered_locations, profile_image_url } = req.body;
 
+        if (!['tourist', 'guide'].includes(role)) {
+            return res.status(400).json({ error: 'Role must be tourist or guide' });
+        }
+
         // 1. Check if the user already exists
         const existingUser = await userRepo.findUserByEmail(email);
         if (existingUser) {
@@ -164,7 +168,6 @@ const login = async (req, res) => {
         const { email, password } = req.body;
 
         // 1. Validate input
-        console.log("LOGIN ATTEMPT:", email, password);
         if (!email || !password) {
             return res.status(400).json({ error: 'Email and password are required' });
         }

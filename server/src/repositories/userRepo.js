@@ -10,8 +10,8 @@ const findUserByEmail = async (email) => {
 // Insert a new user into the database
 const createUser = async (email, passwordHash, role) => {
     const query = `
-        INSERT INTO users (email, password_hash, role)
-        VALUES ($1, $2, $3)
+        INSERT INTO users (email, password_hash, role, is_verified)
+        VALUES ($1, $2, $3, TRUE)
         RETURNING id, email, role, created_at;
     `;
     // If no role is provided, default to 'tourist'
@@ -349,6 +349,14 @@ const deleteGuideReview = async (reviewId) => {
     }
 };
 
+const getGuideReviewById = async (reviewId) => {
+    const result = await db.query(
+        'SELECT id, guide_id, tourist_id FROM guide_reviews WHERE id = $1',
+        [reviewId]
+    );
+    return result.rows[0] || null;
+};
+
 module.exports = { 
     findUserByEmail, 
     createUser,
@@ -363,5 +371,6 @@ module.exports = {
     getUserStats,
     getGuideReviews,
     createGuideReview,
-    deleteGuideReview
+    deleteGuideReview,
+    getGuideReviewById
 };

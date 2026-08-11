@@ -1,5 +1,18 @@
 const itineraryRepo = require('../repositories/itineraryRepo');
 
+async function getOwnedItinerary(req, res, itineraryId) {
+    const itinerary = await itineraryRepo.getItineraryById(itineraryId);
+    if (!itinerary) {
+        res.status(404).json({ error: 'Itinerary not found' });
+        return null;
+    }
+    if (Number(itinerary.tourist_id) !== req.user.id) {
+        res.status(403).json({ error: 'You can only access your own itineraries' });
+        return null;
+    }
+    return itinerary;
+}
+
 /**
  * ITINERARIES CONTROLLER
  * Handles travel itinerary operations
@@ -11,16 +24,16 @@ const itineraryRepo = require('../repositories/itineraryRepo');
  */
 async function createItinerary(req, res) {
     try {
-        const { tourist_id, title, start_date, end_date, places } = req.body;
+        const { title, start_date, end_date, places } = req.body;
 
-        if (!tourist_id || !title) {
+        if (!title) {
             return res.status(400).json({ 
-                error: 'tourist_id and title are required' 
+                error: 'title is required'
             });
         }
 
         const itinerary = await itineraryRepo.createItinerary(
-            tourist_id,
+            req.user.id,
             title,
             start_date,
             end_date,
@@ -46,11 +59,8 @@ async function getItinerary(req, res) {
     try {
         const { id } = req.params;
 
-        const itinerary = await itineraryRepo.getItineraryById(id);
-
-        if (!itinerary) {
-            return res.status(404).json({ error: 'Itinerary not found' });
-        }
+        const itinerary = await getOwnedItinerary(req, res, id);
+        if (!itinerary) return;
 
         res.status(200).json({
             success: true,
@@ -92,6 +102,8 @@ async function updateItinerary(req, res) {
         const { id } = req.params;
         const { title, start_date, end_date } = req.body;
 
+        if (!await getOwnedItinerary(req, res, id)) return;
+
         const itinerary = await itineraryRepo.updateItinerary(
             id,
             title,
@@ -122,6 +134,8 @@ async function deleteItinerary(req, res) {
     try {
         const { id } = req.params;
 
+        if (!await getOwnedItinerary(req, res, id)) return;
+
         await itineraryRepo.deleteItinerary(id);
 
         res.status(200).json({
@@ -142,6 +156,8 @@ async function addPlaceToItinerary(req, res) {
     try {
         const { itinerary_id } = req.params;
         const { place_id, visit_order, notes } = req.body;
+
+        if (!await getOwnedItinerary(req, res, itinerary_id)) return;
 
         if (!place_id) {
             return res.status(400).json({ error: 'place_id is required' });
@@ -175,6 +191,8 @@ async function addPlaceToItinerary(req, res) {
 async function removePlaceFromItinerary(req, res) {
     try {
         const { itinerary_id, place_id } = req.params;
+
+        if (!await getOwnedItinerary(req, res, itinerary_id)) return;
 
         await itineraryRepo.removePlaceFromItinerary(itinerary_id, place_id);
 
