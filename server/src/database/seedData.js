@@ -19,8 +19,8 @@ const samplePlaces = [
     {
         name: 'Temple of the Tooth (Sri Dalada Maligawa)',
         description: 'Most sacred Buddhist temple in Kandy, housing what is believed to be a tooth relic of Buddha. Located in the heart of Kandy with stunning architecture and religious significance. A UNESCO World Heritage Site.',
-        latitude: 6.9270,
-        longitude: 80.6353,
+        latitude: 7.2936,
+        longitude: 80.6413,
         category: 'Religious',
         image_url: 'https://lakshmisharath.com/wp-content/uploads/2022/09/Kandy-toothrelictemple-dawn.jpg'
     },
@@ -51,32 +51,32 @@ const samplePlaces = [
     {
         name: 'Adam\'s Peak (Sri Pada)',
         description: 'Sacred mountain with a footprint-shaped depression on its summit revered by Buddhists, Hindus, and Muslims. Elevation 2,243m with 5,500 steps to reach the peak. Spiritual pilgrimage destination.',
-        latitude: 6.8092,
-        longitude: 80.7608,
+        latitude: 6.8096,
+        longitude: 80.4994,
         category: 'Religious',
         image_url: 'https://tse4.mm.bing.net/th/id/OIP.Dnq5LTSnsGPNZqMvAN_8nQHaFB?rs=1&pid=ImgDetMain&o=7&rm=3'
     },
     {
         name: 'Nine Arch Bridge',
         description: 'Iconic colonial-era railway bridge built in 1921 with nine stone arches. Located in Ella, it\'s one of the most photographed bridges in Sri Lanka. Surrounded by lush green valleys and tea plantations.',
-        latitude: 6.8431,
-        longitude: 81.1178,
+        latitude: 6.8768,
+        longitude: 81.0608,
         category: 'Monument',
         image_url: 'https://i0.wp.com/www.tourbooking.lk/wp-content/uploads/2023/02/Nine-Arch-Bridge.jpg?fit=1920%2C1080&ssl=1'
     },
     {
         name: 'Mirissa Beach',
         description: 'Tropical beach in southern Sri Lanka known for whale watching (November-March) and spectacular sunsets. Pristine white sand and clear waters. Popular base for exploring the south coast.',
-        latitude: 5.9412,
-        longitude: 80.7773,
+        latitude: 5.9431,
+        longitude: 80.4600,
         category: 'Beach',
         image_url: 'https://i.pinimg.com/originals/e6/7b/18/e67b18f636852de9ca74b734503ac466.jpg'
     },
     {
         name: 'Unawatuna Beach',
         description: 'Picturesque crescent-shaped beach near Galle with golden sand and calm waters. Perfect for swimming, snorkeling, and water sports. Vibrant beach town with restaurants and accommodations.',
-        latitude: 6.0238,
-        longitude: 80.7777,
+        latitude: 6.0135,
+        longitude: 80.2486,
         category: 'Beach',
         image_url: 'https://turystycznyninja.pl/wp-content/uploads/2023/01/Unawatuna-Beach-Sri-Lanka-shutterstock.com-Marius-Dobilas.jpg'
     },
@@ -91,8 +91,8 @@ const samplePlaces = [
     {
         name: 'Nuwara Eliya',
         description: 'Hill station in central highlands at 1,868m elevation. Known as "Little England" with colonial architecture, golf course, and cool climate. Gateway to Horton Plains and scenic tea country.',
-        latitude: 6.9271,
-        longitude: 80.7850,
+        latitude: 6.9707,
+        longitude: 80.7829,
         category: 'Nature',
         image_url: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=600&h=400'
     },
@@ -107,8 +107,8 @@ const samplePlaces = [
     {
         name: 'Kandy Lake',
         description: 'Artificial lake in the heart of Kandy surrounded by walking paths, gardens, and temples. Built in 1807, it\'s an iconic landmark with reflection of hills and temples. Evening strolls are popular.',
-        latitude: 6.9271,
-        longitude: 80.6353,
+        latitude: 7.2911,
+        longitude: 80.6419,
         category: 'Nature',
         image_url: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=600&h=400'
     },
@@ -131,16 +131,16 @@ const samplePlaces = [
     {
         name: 'Colombo National Museum',
         description: 'Premier museum featuring Sri Lankan art, artifacts, and natural history exhibits. Housed in a Victorian building with collections spanning from prehistoric times to modern era. Includes royal regalia and Buddhist sculptures.',
-        latitude: 6.8721,
-        longitude: 80.6325,
+        latitude: 6.9142,
+        longitude: 79.8606,
         category: 'Museum',
         image_url: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=600&h=400'
     },
     {
         name: 'Mount Lavinia Beach',
         description: 'Golden sandy beach in Colombo suburb with calm waters and vibrant atmosphere. Named after a legendary love story. Home to Mount Lavinia Hotel and water sports facilities.',
-        latitude: 6.8475,
-        longitude: 80.7662,
+        latitude: 6.8374,
+        longitude: 79.8631,
         category: 'Beach',
         image_url: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSl9nNzK-D7WepYIGfIT2AeKf8CYJg3HEvoFKYGIHzCwA&s=10'
     },

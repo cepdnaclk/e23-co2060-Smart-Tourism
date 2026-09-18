@@ -11,9 +11,34 @@ import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { 
   FaRoute, FaClock, FaMoneyBillWave, FaBullseye, FaSearch, 
   FaTimes, FaCalendarAlt, FaPhone, FaImage, FaExclamationTriangle,
-  FaMapMarkerAlt, FaPlus, FaTrash, FaPaperPlane, FaChevronDown
+  FaMapMarkerAlt, FaPlus, FaTrash, FaPaperPlane, FaChevronDown,
+  FaSnowflake, FaSun, FaCompass
 } from 'react-icons/fa';
 import './ItineraryPage.css';
+
+// Season-based place presets for Sri Lanka
+const WINTER_PLACES = [
+  "Mirissa Beach",
+  "Galle Fort",
+  "Unawatuna Beach",
+  "Ella Rock",
+  "Nine Arch Bridge",
+  "Adam's Peak (Sri Pada)",
+  "Nuwara Eliya",
+  "Horton Plains National Park",
+  "Mount Lavinia Beach",
+  "Yala National Park"
+];
+
+const SUMMER_PLACES = [
+  "Sigiriya Rock Fortress",
+  "Anuradhapura Ancient City",
+  "Polonnaruwa Ancient City",
+  "Dambulla Cave Temple",
+  "Temple of the Tooth (Sri Dalada Maligawa)",
+  "Kandy Lake",
+  "Peradeniya Botanical Gardens"
+];
 
 // GraphHopper free demo key — replace with your own from graphhopper.com
 const GRAPHHOPPER_API_KEY = 'f8512521-29f8-40cc-ad0a-64bed3f3c40b';
@@ -107,7 +132,7 @@ const ItineraryPage = () => {
   const [itineraries, setItineraries] = useState([]);
   const [selectedItinerary, setSelectedItinerary] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [newItinerary, setNewItinerary] = useState({ title: '', startDate: '', endDate: '' });
+  const [newItinerary, setNewItinerary] = useState({ title: '', startDate: '', endDate: '', season: 'none' });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [availablePlaces, setAvailablePlaces] = useState([]);
@@ -227,17 +252,26 @@ const ItineraryPage = () => {
     e.preventDefault();
     if (!newItinerary.title) return setError('Please enter a title');
 
+    // Find the places to add based on the selected season
+    let selectedPlaces = [];
+    if (newItinerary.season === 'winter') {
+      selectedPlaces = availablePlaces.filter(p => WINTER_PLACES.includes(p.name));
+    } else if (newItinerary.season === 'summer') {
+      selectedPlaces = availablePlaces.filter(p => SUMMER_PLACES.includes(p.name));
+    }
+
     try {
       const response = await itineraryService.createItinerary({
         tourist_id: user.id,
         title: newItinerary.title,
         start_date: newItinerary.startDate || null,
-        end_date: newItinerary.endDate || null
+        end_date: newItinerary.endDate || null,
+        places: selectedPlaces.map(p => ({ id: p.id }))
       });
       const created = response.data.itinerary || response.data.data;
       setItineraries([...itineraries, created]);
       setSelectedItinerary(created);
-      setNewItinerary({ title: '', startDate: '', endDate: '' });
+      setNewItinerary({ title: '', startDate: '', endDate: '', season: 'none' });
       setSuccess('Itinerary created successfully!');
       setShowCreateModal(false);
       
@@ -491,42 +525,15 @@ const ItineraryPage = () => {
   return (
     <main className="itinerary-page">
       <div className="container" style={{ maxWidth: '1400px' }}>
-        <div className="itinerary-top-bar" style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center', 
-          marginTop: '20px',
-          marginBottom: '40px', 
-          background: 'var(--bg-card)', 
-          padding: '24px 40px', 
-          borderRadius: '24px', 
-          border: '1px solid var(--border)', 
-          boxShadow: 'var(--shadow)',
-          animation: 'modalPop 0.4s ease-out'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '32px' }}>
-            <h2 style={{ margin: 0, fontSize: '1.8rem', fontWeight: '900', color: 'var(--text-head)', letterSpacing: '-0.03em' }}>Your Itineraries</h2>
-            <div style={{ position: 'relative' }}>
+        <div className="itinerary-top-bar">
+          <div className="itinerary-top-bar-left">
+            <h2>Your Itineraries</h2>
+            <div className="itinerary-select-wrapper">
               <select 
                 value={selectedItinerary?.id || ''}
                 onChange={(e) => {
                   const chosen = itineraries.find(it => it.id === parseInt(e.target.value));
                   if (chosen) setSelectedItinerary(chosen);
-                }}
-                style={{
-                  padding: '14px 56px 14px 24px',
-                  borderRadius: '16px',
-                  border: '2px solid var(--border)',
-                  backgroundColor: 'var(--bg-page)',
-                  color: 'var(--text-head)',
-                  fontSize: '1.05rem',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  appearance: 'none',
-                  minWidth: '320px',
-                  outline: 'none',
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
                 }}
                 className="itinerary-dropdown-select"
               >
@@ -535,38 +542,13 @@ const ItineraryPage = () => {
                   <option key={it.id} value={it.id}>{it.title || 'Untitled Trip'}</option>
                 ))}
               </select>
-              <FaChevronDown style={{ 
-                position: 'absolute', 
-                right: '24px', 
-                top: '50%', 
-                transform: 'translateY(-50%)', 
-                pointerEvents: 'none', 
-                fontSize: '0.9rem', 
-                color: 'var(--primary)',
-                opacity: 0.9
-              }} />
+              <FaChevronDown className="select-chevron" />
             </div>
           </div>
 
           <button 
             className="create-new-btn"
             onClick={() => setShowCreateModal(true)}
-            style={{
-              background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-              color: 'white',
-              border: 'none',
-              padding: '16px 36px',
-              borderRadius: '999px',
-              fontSize: '1.1rem',
-              fontWeight: '800',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-              boxShadow: '0 8px 25px rgba(99, 102, 241, 0.4)',
-              letterSpacing: '-0.01em'
-            }}
           >
             <FaPlus /> Create New One
           </button>
@@ -575,26 +557,24 @@ const ItineraryPage = () => {
         {error && <div className="error">{error}</div>}
         {success && <div className="success">{success}</div>}
 
-                <div className="itinerary-top-bar" style={{ display: 'none' }}></div> {/* Hidden since moved to top */}
-
-        <div className="itinerary-layout" style={{ display: 'block' }}>
-          <section className="itinerary-content" style={{ padding: 0, background: 'transparent', border: 'none', boxShadow: 'none' }}>
+        <div className="itinerary-layout">
+          <section className="itinerary-content">
             {selectedItinerary ? (
               <div className="itinerary-detail">
-                <div className="detail-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '32px' }}>
-                  <div style={{ borderLeft: '4px solid var(--primary)', paddingLeft: '20px' }}>
-                    <h1 style={{ fontSize: '2.5rem', margin: 0, lineHeight: 1.1 }}>{selectedItinerary.title}</h1>
-                    <p style={{ margin: '8px 0 0', opacity: 0.6, fontSize: '0.95rem' }}>
+                <div className="detail-header">
+                  <div className="detail-header-title">
+                    <h1>{selectedItinerary.title}</h1>
+                    <p>
                       {selectedItinerary.start_date 
                         ? `${new Date(selectedItinerary.start_date).toLocaleDateString()} — ${new Date(selectedItinerary.end_date).toLocaleDateString()}`
                         : 'Custom trip plan'}
                     </p>
                   </div>
-                  <button onClick={() => handleDeleteItinerary(selectedItinerary.id)} className="btn btn-danger" style={{ borderRadius: '12px', padding: '10px 20px', fontSize: '0.9rem' }}>Delete Plan</button>
+                  <button onClick={() => handleDeleteItinerary(selectedItinerary.id)} className="btn btn-danger delete-plan-btn">Delete Plan</button>
                 </div>
 
-                <div className="itinerary-main-section" style={{ display: 'flex', gap: '40px', alignItems: 'flex-start', marginBottom: '60px' }}>
-                  <div className="map-preview-container" style={{ flex: 1.6, height: '600px' }}>
+                <div className="itinerary-main-section">
+                  <div className="map-preview-container">
                   <MapContainer 
                     center={polyline.length > 0 ? polyline[0] : [7.8731, 80.7718]} 
                     zoom={polyline.length > 0 ? 9 : 7} 
@@ -1192,7 +1172,7 @@ const ItineraryPage = () => {
                     required 
                   />
                 </div>
-                <div style={{ display: 'flex', gap: '20px' }}>
+                <div className="modal-form-row">
                   <div className="form-group" style={{ flex: 1 }}>
                     <label>Start Date</label>
                     <input 
@@ -1212,6 +1192,59 @@ const ItineraryPage = () => {
                     />
                   </div>
                 </div>
+
+                <div className="form-group" style={{ marginTop: '20px' }}>
+                  <label style={{ fontWeight: '700', fontSize: '0.95rem' }}>Select a Season (Optional Preset)</label>
+                  <div className="season-selector-cards">
+                    <div 
+                      className={`season-card ${newItinerary.season === 'none' ? 'active' : ''}`}
+                      onClick={() => setNewItinerary({ ...newItinerary, season: 'none' })}
+                    >
+                      <div className="season-card-icon"><FaCompass /></div>
+                      <div className="season-card-title">None</div>
+                      <div className="season-card-desc">Empty canvas</div>
+                    </div>
+                    <div 
+                      className={`season-card winter ${newItinerary.season === 'winter' ? 'active' : ''}`}
+                      onClick={() => setNewItinerary({ ...newItinerary, season: 'winter' })}
+                    >
+                      <div className="season-card-icon"><FaSnowflake /></div>
+                      <div className="season-card-title">Winter Preset</div>
+                      <div className="season-card-desc">Dec - Apr (South & West Coast)</div>
+                    </div>
+                    <div 
+                      className={`season-card summer ${newItinerary.season === 'summer' ? 'active' : ''}`}
+                      onClick={() => setNewItinerary({ ...newItinerary, season: 'summer' })}
+                    >
+                      <div className="season-card-icon"><FaSun /></div>
+                      <div className="season-card-title">Summer Preset</div>
+                      <div className="season-card-desc">May - Oct (Cultural & East)</div>
+                    </div>
+                  </div>
+                </div>
+
+                {newItinerary.season !== 'none' && (
+                  <div className="seasonal-preview-section">
+                    <h4 className="seasonal-preview-title">
+                      Automatically Adding {newItinerary.season === 'winter' ? WINTER_PLACES.length : SUMMER_PLACES.length} Places:
+                    </h4>
+                    <div className="seasonal-preview-list">
+                      {availablePlaces
+                        .filter(p => newItinerary.season === 'winter' ? WINTER_PLACES.includes(p.name) : SUMMER_PLACES.includes(p.name))
+                        .map(p => (
+                          <div key={p.id} className="seasonal-preview-item">
+                            {p.image_url ? (
+                              <img src={p.image_url} alt={p.name} className="seasonal-preview-img" />
+                            ) : (
+                              <span className="seasonal-preview-emoji">📍</span>
+                            )}
+                            <span className="seasonal-preview-name">{p.name}</span>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
                 <button type="submit" className="btn btn-primary btn-large" style={{ marginTop: '20px', borderRadius: '12px' }}>
                   <FaPlus /> Create Itinerary
                 </button>
