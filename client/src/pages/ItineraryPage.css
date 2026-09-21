@@ -908,42 +908,24 @@
 /* Map Styles */
 .map-preview-container {
   width: 100%;
-  min-height: 420px;
-  height: clamp(420px, 48vh, 560px);
+  min-height: 500px;
+  height: 600px;
   margin-bottom: 24px;
-  border-radius: 14px;
+  border-radius: 24px;
   overflow: hidden;
-  border: 1px solid #d9e2ef;
-  box-shadow: 0 10px 26px rgba(30, 41, 59, 0.14);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
   z-index: 1;
-  background: #f8fafc;
+  background: var(--bg-card);
+  position: relative;
 }
 
-.itinerary-map {
-  height: 100%;
-  width: 100%;
-}
-
-.confirm-btn {
-  width: 100%;
-  padding: 15px;
-  font-weight: bold;
-  font-size: 1.1rem;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-  transition: transform 0.2s;
-}
-
-.confirm-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-}
-
-.confirm-btn:disabled {
-  background-color: #bdc3c7;
-  cursor: not-allowed;
-}
-
-/* Fix for Leaflet z-index issues */
+.itinerary-map,
 .leaflet-container {
+  height: 100% !important;
+  width: 100% !important;
+  min-height: 500px !important;
+  border-radius: 24px;
   z-index: 1 !important;
 }
 
@@ -1410,6 +1392,12 @@
     width: 100%;
     flex: none;
     height: 380px;
+    min-height: 380px;
+  }
+
+  .itinerary-map,
+  .leaflet-container {
+    min-height: 380px !important;
   }
 
   .itinerary-places {

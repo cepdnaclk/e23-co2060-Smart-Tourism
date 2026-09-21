@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { usePlace } from '../context/PlaceContext';
 import { itineraryService, placeService, bookingService, guideService } from '../services';
-import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
@@ -15,6 +15,48 @@ import {
   FaSnowflake, FaSun, FaCompass
 } from 'react-icons/fa';
 import './ItineraryPage.css';
+
+// Helper component to adjust Leaflet map bounds and invalidate size when places change
+const MapController = ({ markers, polyline }) => {
+  const map = useMap();
+
+  useEffect(() => {
+    // Force Leaflet to recalculate container size in flex containers
+    const timer = setTimeout(() => {
+      map.invalidateSize();
+    }, 150);
+
+    if (polyline && polyline.length > 1) {
+      try {
+        const bounds = L.latLngBounds(polyline);
+        map.fitBounds(bounds, { padding: [45, 45], maxZoom: 13 });
+      } catch (err) {
+        console.warn('Map bounds error:', err);
+      }
+    } else if (markers && markers.length > 0) {
+      try {
+        const coords = markers
+          .map(m => [parseFloat(m.latitude), parseFloat(m.longitude)])
+          .filter(([lat, lng]) => !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0);
+
+        if (coords.length > 1) {
+          const bounds = L.latLngBounds(coords);
+          map.fitBounds(bounds, { padding: [45, 45], maxZoom: 13 });
+        } else if (coords.length === 1) {
+          map.setView(coords[0], 11);
+        }
+      } catch (err) {
+        console.warn('Map marker bounds error:', err);
+      }
+    } else {
+      map.setView([7.8731, 80.7718], 7);
+    }
+
+    return () => clearTimeout(timer);
+  }, [map, markers, polyline]);
+
+  return null;
+};
 
 // Season-based place presets for Sri Lanka
 const WINTER_PLACES = [
@@ -43,7 +85,7 @@ const SUMMER_PLACES = [
 // GraphHopper free demo key — replace with your own from graphhopper.com
 const GRAPHHOPPER_API_KEY = 'f8512521-29f8-40cc-ad0a-64bed3f3c40b';
 
-const fetchGraphHopperRoute = async (coordPairs, attempt = 1) => {
+const fetchSingleLeg = async (coordPairs, attempt = 1) => {
   if (coordPairs.length < 2) return null;
   const pointsParam = coordPairs
     .map(([lat, lng]) => `point=${lat},${lng}`)
@@ -55,16 +97,13 @@ const fetchGraphHopperRoute = async (coordPairs, attempt = 1) => {
     const data = await res.json();
     
     if (!res.ok) {
-      // Professional Hack: If a point is unreachable by car (off-road), the API returns "Cannot find point X".
-      // We catch this, remove that specific point from the routing request, and try again.
-      // This ensures 90% of the route still looks professional even if one point is messy.
       const match = data.message?.match(/Cannot find point (\d+)/);
       if (match && attempt < 3 && coordPairs.length > 2) {
         const pointIdx = parseInt(match[1]);
         console.warn(`Routing: Point ${pointIdx} is off-road. Retrying without it...`);
         const reducedCoords = [...coordPairs];
         reducedCoords.splice(pointIdx, 1);
-        return fetchGraphHopperRoute(reducedCoords, attempt + 1);
+        return fetchSingleLeg(reducedCoords, attempt + 1);
       }
       throw new Error(`GraphHopper request failed (${res.status}): ${data.message || 'unknown error'}`);
     }
@@ -85,12 +124,51 @@ const fetchGraphHopperRoute = async (coordPairs, attempt = 1) => {
 
     return {
       points,
-      distanceKm: (path.distance / 1000).toFixed(1),
-      durationMin: Math.round(path.time / 60000),
+      distanceMeters: path.distance,
+      timeMs: path.time,
     };
   } catch (err) {
     throw err;
   }
+};
+
+const fetchGraphHopperRoute = async (coordPairs) => {
+  if (coordPairs.length < 2) return null;
+
+  // GraphHopper free tier limits max 5 waypoints per request.
+  // Split into overlapping legs of max 5 points.
+  const chunkSize = 5;
+  const legs = [];
+  for (let i = 0; i < coordPairs.length - 1; i += chunkSize - 1) {
+    const chunk = coordPairs.slice(i, i + chunkSize);
+    if (chunk.length >= 2) {
+      legs.push(chunk);
+    }
+  }
+
+  const results = await Promise.all(legs.map(leg => fetchSingleLeg(leg)));
+  
+  let combinedPoints = [];
+  let totalDistanceMeters = 0;
+  let totalTimeMs = 0;
+
+  results.forEach((res, idx) => {
+    if (!res) return;
+    totalDistanceMeters += res.distanceMeters || 0;
+    totalTimeMs += res.timeMs || 0;
+    if (idx === 0) {
+      combinedPoints.push(...res.points);
+    } else {
+      // Skip the first point to prevent duplicate boundary coordinates
+      combinedPoints.push(...res.points.slice(1));
+    }
+  });
+
+  return {
+    points: combinedPoints,
+    distanceKm: (totalDistanceMeters / 1000).toFixed(1),
+    durationMin: Math.round(totalTimeMs / 60000),
+  };
 };
 
 // Google-style encoded polyline decoder
@@ -442,12 +520,14 @@ const ItineraryPage = () => {
   // Map Data Helper
   const getMapData = () => {
     if (!selectedItinerary?.places) return { markers: [], polyline: [] };
-    const valid = selectedItinerary.places.filter(p => p.latitude && p.longitude);
+    const valid = selectedItinerary.places.filter(p => {
+      const lat = parseFloat(p.latitude);
+      const lng = parseFloat(p.longitude);
+      return !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0;
+    });
     const coords = valid.map(p => [parseFloat(p.latitude), parseFloat(p.longitude)]);
     return { markers: valid, polyline: coords };
   };
-
-
 
   const currentItineraryBookings = touristBookings.filter(
     (booking) => booking.itinerary_id === selectedItinerary?.id
@@ -576,12 +656,17 @@ const ItineraryPage = () => {
                 <div className="itinerary-main-section">
                   <div className="map-preview-container">
                   <MapContainer 
+                    key={selectedItinerary?.id || 'map-default'}
                     center={polyline.length > 0 ? polyline[0] : [7.8731, 80.7718]} 
                     zoom={polyline.length > 0 ? 9 : 7} 
                     className="itinerary-map"
-                    style={{ height: '100%', borderRadius: '24px', boxShadow: 'var(--shadow)', border: '1px solid var(--border)' }}
+                    style={{ height: '100%', width: '100%', minHeight: '500px', borderRadius: '24px', boxShadow: 'var(--shadow)', border: '1px solid var(--border)' }}
                   >
-                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                    <TileLayer 
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" 
+                    />
+                    <MapController markers={markers} polyline={ghRoute?.points || polyline} />
                     {markers.map((place, idx) => {
                       const customIcon = L.divIcon({
                         className: '',
