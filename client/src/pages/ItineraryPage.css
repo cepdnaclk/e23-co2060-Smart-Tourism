@@ -17,10 +17,8 @@
 }
 
 .itinerary-layout {
-  display: grid;
-  grid-template-columns: 300px 1fr;
-  gap: 30px;
-  align-items: start;
+  display: block;
+  width: 100%;
 }
 
 /* Sidebar */
@@ -443,10 +441,6 @@
 }
 
 @media (max-width: 1200px) {
-  .itinerary-layout {
-    grid-template-columns: 1fr;
-  }
-
   .itinerary-sidebar {
     position: static;
     top: auto;
