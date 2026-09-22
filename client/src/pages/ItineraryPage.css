@@ -17,10 +17,8 @@
 }
 
 .itinerary-layout {
-  display: grid;
-  grid-template-columns: 300px 1fr;
-  gap: 30px;
-  align-items: start;
+  display: block;
+  width: 100%;
 }
 
 /* Sidebar */
@@ -443,10 +441,6 @@
 }
 
 @media (max-width: 1200px) {
-  .itinerary-layout {
-    grid-template-columns: 1fr;
-  }
-
   .itinerary-sidebar {
     position: static;
     top: auto;
@@ -908,42 +902,24 @@
 /* Map Styles */
 .map-preview-container {
   width: 100%;
-  min-height: 420px;
-  height: clamp(420px, 48vh, 560px);
+  min-height: 500px;
+  height: 600px;
   margin-bottom: 24px;
-  border-radius: 14px;
+  border-radius: 24px;
   overflow: hidden;
-  border: 1px solid #d9e2ef;
-  box-shadow: 0 10px 26px rgba(30, 41, 59, 0.14);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
   z-index: 1;
-  background: #f8fafc;
+  background: var(--bg-card);
+  position: relative;
 }
 
-.itinerary-map {
-  height: 100%;
-  width: 100%;
-}
-
-.confirm-btn {
-  width: 100%;
-  padding: 15px;
-  font-weight: bold;
-  font-size: 1.1rem;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-  transition: transform 0.2s;
-}
-
-.confirm-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-}
-
-.confirm-btn:disabled {
-  background-color: #bdc3c7;
-  cursor: not-allowed;
-}
-
-/* Fix for Leaflet z-index issues */
+.itinerary-map,
 .leaflet-container {
+  height: 100% !important;
+  width: 100% !important;
+  min-height: 500px !important;
+  border-radius: 24px;
   z-index: 1 !important;
 }
 
@@ -1079,4 +1055,423 @@
   border-radius: 20px;
   text-transform: capitalize;
   font-weight: 600;
+}
+
+/* Season selector styles */
+.season-selector-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.season-card {
+  border: 2px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+  text-align: center;
+  cursor: pointer;
+  background: var(--bg-page);
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+.season-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--primary);
+  box-shadow: var(--shadow-md);
+}
+
+.season-card.active {
+  border-color: var(--primary);
+  background: var(--bg-card);
+  box-shadow: 0 8px 24px rgba(79, 70, 229, 0.15);
+}
+
+.season-card.winter.active {
+  border-color: #0ea5e9;
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.05) 0%, rgba(14, 165, 233, 0.02) 100%);
+  box-shadow: 0 8px 24px rgba(14, 165, 233, 0.15);
+}
+
+.season-card.summer.active {
+  border-color: #f59e0b;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.05) 0%, rgba(245, 158, 11, 0.02) 100%);
+  box-shadow: 0 8px 24px rgba(245, 158, 11, 0.15);
+}
+
+.season-card-icon {
+  font-size: 1.8rem;
+  color: var(--text-muted);
+  transition: all 0.3s;
+}
+
+.season-card.active .season-card-icon {
+  color: var(--primary);
+  transform: scale(1.1);
+}
+
+.season-card.winter.active .season-card-icon {
+  color: #0ea5e9;
+}
+
+.season-card.summer.active .season-card-icon {
+  color: #f59e0b;
+}
+
+.season-card-title {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text-head);
+}
+
+.season-card-desc {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.3;
+}
+
+/* Seasonal Place Preview styles */
+.seasonal-preview-section {
+  margin-top: 24px;
+  background: var(--bg-page);
+  padding: 20px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  animation: slideDown 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.seasonal-preview-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-head);
+  margin: 0 0 12px 0;
+}
+
+.seasonal-preview-list {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.seasonal-preview-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-card);
+  padding: 8px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+  transition: all 0.2s;
+}
+
+.seasonal-preview-item:hover {
+  transform: translateY(-2px);
+  border-color: var(--primary);
+}
+
+.seasonal-preview-img {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.seasonal-preview-emoji {
+  font-size: 0.9rem;
+}
+
+.seasonal-preview-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-body);
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Ensure the create itinerary modal content is scrollable and fits on small/medium screens */
+.review-modal-content {
+  max-height: 95vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.create-itinerary-modal {
+  max-height: calc(95vh - 80px);
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+/* Custom scrollbar for create-itinerary-modal */
+.create-itinerary-modal::-webkit-scrollbar {
+  width: 6px;
+}
+
+.create-itinerary-modal::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.create-itinerary-modal::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  border-radius: 20px;
+}
+
+/* Top Bar Layout */
+.itinerary-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+  margin-bottom: 40px;
+  background: var(--bg-card);
+  padding: 24px 40px;
+  border-radius: 24px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  animation: modalPop 0.4s ease-out;
+}
+
+.itinerary-top-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
+.itinerary-top-bar-left h2 {
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 900;
+  color: var(--text-head);
+  letter-spacing: -0.03em;
+}
+
+.itinerary-select-wrapper {
+  position: relative;
+}
+
+.itinerary-dropdown-select {
+  padding: 14px 56px 14px 24px;
+  border-radius: 16px;
+  border: 2px solid var(--border);
+  background-color: var(--bg-page);
+  color: var(--text-head);
+  font-size: 1.05rem;
+  font-weight: 700;
+  cursor: pointer;
+  appearance: none;
+  width: 100%;
+  min-width: 280px;
+  outline: none;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.select-chevron {
+  position: absolute;
+  right: 24px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  font-size: 0.9rem;
+  color: var(--primary);
+  opacity: 0.9;
+}
+
+.create-new-btn {
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  color: white;
+  border: none;
+  padding: 16px 36px;
+  border-radius: 999px;
+  font-size: 1.1rem;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 8px 25px rgba(99, 102, 241, 0.4);
+  letter-spacing: -0.01em;
+}
+
+/* Detail Header & Main Section */
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 32px;
+}
+
+.detail-header-title {
+  border-left: 4px solid var(--primary);
+  padding-left: 20px;
+}
+
+.detail-header-title h1 {
+  font-size: 2.5rem;
+  margin: 0;
+  line-height: 1.1;
+}
+
+.detail-header-title p {
+  margin: 8px 0 0;
+  opacity: 0.6;
+  font-size: 0.95rem;
+}
+
+.delete-plan-btn {
+  border-radius: 12px;
+  padding: 10px 20px;
+  font-size: 0.9rem;
+}
+
+.itinerary-main-section {
+  display: flex;
+  gap: 40px;
+  align-items: flex-start;
+  margin-bottom: 60px;
+}
+
+.map-preview-container {
+  flex: 1.6;
+  height: 600px;
+}
+
+.itinerary-places {
+  flex: 1;
+  margin-top: 0;
+  background: var(--bg-card);
+  padding: 32px;
+  border-radius: 24px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  min-height: 600px;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-form-row {
+  display: flex;
+  gap: 20px;
+}
+
+/* Mobile & Tablet Responsiveness */
+@media (max-width: 992px) {
+  .itinerary-main-section {
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .map-preview-container {
+    width: 100%;
+    flex: none;
+    height: 380px;
+    min-height: 380px;
+  }
+
+  .itinerary-map,
+  .leaflet-container {
+    min-height: 380px !important;
+  }
+
+  .itinerary-places {
+    width: 100%;
+    flex: none;
+    min-height: auto;
+    padding: 24px 18px;
+  }
+}
+
+@media (max-width: 768px) {
+  .itinerary-top-bar {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 20px 16px;
+    gap: 20px;
+  }
+
+  .itinerary-top-bar-left {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+
+  .itinerary-top-bar-left h2 {
+    font-size: 1.5rem;
+    text-align: center;
+  }
+
+  .itinerary-select-wrapper {
+    width: 100%;
+  }
+
+  .itinerary-dropdown-select {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .create-new-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 14px 20px;
+    font-size: 1rem;
+  }
+
+  .detail-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .detail-header-title h1 {
+    font-size: 1.8rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .modal-form-row {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .season-selector-cards {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .review-modal-content {
+    padding: 24px 16px;
+    width: calc(100% - 24px);
+    margin: 12px;
+  }
+
+  .create-itinerary-modal h3 {
+    font-size: 1.4rem;
+    margin-bottom: 20px;
+  }
+
+  .journey-summary__stats {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
 }

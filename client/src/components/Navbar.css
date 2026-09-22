@@ -7,6 +7,9 @@
   z-index: 100;
   border-bottom: 1px solid var(--border);
   transition: all 0.3s ease;
+  width: 100%;
+  max-width: 100vw;
+  overflow: hidden;
 }
 
 .navbar-container {
@@ -135,10 +138,62 @@
 }
 
 @media (max-width: 768px) {
-  .navbar-container { padding: 0 16px; }
-  .nav-menu { gap: 1rem; font-size: 0.85rem; }
-  .register-link { padding: 6px 12px; }
-  .nav-user { border-left: none; padding-left: 0; }
+  .navbar-container { 
+    padding: 8px 16px; 
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  
+  .navbar-logo {
+    font-size: 1.25rem;
+    justify-content: flex-start;
+  }
+
+  .nav-menu { 
+    display: flex;
+    overflow-x: auto;
+    white-space: nowrap;
+    width: 100%;
+    padding: 4px 2px 8px 2px;
+    gap: 0.6rem;
+    font-size: 0.85rem; 
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .nav-menu::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nav-menu li {
+    flex-shrink: 0;
+  }
+
+  .nav-link {
+    font-size: 0.85rem;
+    padding: 6px 12px;
+    background: var(--bg-page);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    white-space: nowrap;
+  }
+
+  .register-link { 
+    padding: 6px 12px; 
+  }
+
+  .nav-user { 
+    border-left: none; 
+    padding-left: 0; 
+    gap: 0.5rem;
+  }
+
+  .logout-btn {
+    padding: 4px 10px;
+    font-size: 0.8rem;
+  }
 }
 
 .notif-badge {
