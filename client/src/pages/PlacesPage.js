@@ -27,8 +27,8 @@ const PlacesPage = () => {
     }
   };
 
-  const handleViewDetails = (placeId) => {
-    navigate(`/place/${placeId}`);
+  const handleViewDetails = (placeId, imageUrl) => {
+    navigate(`/place/${placeId}`, { state: { passedImageUrl: imageUrl } });
   };
 
   const handleAddToItinerary = (placeId) => {

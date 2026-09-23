@@ -1,18 +1,16 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { guideService, bookingService } from '../services';
-<<<<<<< HEAD
-=======
 import SearchBar from '../components/SearchBar';
 import ReviewSection from '../components/ReviewSection';
 import { FaHistory, FaCheckCircle, FaPaperPlane, FaClipboardList, FaComments, FaLanguage, FaIdCard, FaStar } from 'react-icons/fa';
 import { formatUserId } from '../utils/formatters';
->>>>>>> f9f936a (Refactor components by removing unused variables and imports for improved code clarity)
 import './TravelGuidePage.css';
-import SearchBar from '../components/SearchBar';
 
 const TravelGuidePage = () => {
   const { user } = useAuth();
+  const location = useLocation();
   const [guides, setGuides] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [filteredGuides, setFilteredGuides] = useState([]);
@@ -113,6 +111,18 @@ const TravelGuidePage = () => {
     }
   }, [user?.role, fetchGuides, fetchBookings]);
 
+  // Handle auto-opening portfolio from dashboard
+  useEffect(() => {
+    if (location.state?.openProfileId && guides.length > 0) {
+      const targetId = String(location.state.openProfileId);
+      const guideToOpen = guides.find(g => String(g.id) === targetId);
+      if (guideToOpen) {
+        setSelectedGuide(guideToOpen);
+        setShowPortfolio(true);
+      }
+    }
+  }, [location.state, guides]);
+
   const handleSendBookingMessage = async (bookingId) => {
     const message = messageTextByBooking[bookingId] || '';
     if (!message.trim()) {
@@ -138,10 +148,13 @@ const TravelGuidePage = () => {
 
   const handleSearch = (query) => {
     if (query.trim()) {
+      const q = query.toLowerCase();
       const filtered = guides.filter(guide =>
-        (guide.full_name || '').toLowerCase().includes(query.toLowerCase()) ||
-        (guide.specialization || '').toLowerCase().includes(query.toLowerCase()) ||
-        (guide.bio || '').toLowerCase().includes(query.toLowerCase())
+        (guide.full_name || '').toLowerCase().includes(q) ||
+        (guide.specialization || '').toLowerCase().includes(q) ||
+        (guide.bio || '').toLowerCase().includes(q) ||
+        (guide.id && formatUserId(guide.id, 'guide').toLowerCase().includes(q)) ||
+        (guide.user_id && formatUserId(guide.user_id, 'guide').toLowerCase().includes(q))
       );
       setFilteredGuides(filtered);
     } else {
@@ -186,61 +199,68 @@ const TravelGuidePage = () => {
         {success && <div className="success">{success}</div>}
 
         {user?.role === 'tourist' && bookings.length > 0 && (
-          <section className="my-bookings-section" style={{ 
-            marginBottom: '40px', 
-            padding: '20px', 
-            backgroundColor: '#f9f9f9', 
-            borderRadius: '12px',
-            border: '1px solid #eee'
-          }}>
-            <h2 style={{ marginBottom: '20px' }}>📋 My Guide Requests</h2>
-            <div className="bookings-grid" style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-              gap: '20px'
-            }}>
+          <section className="guide-requests-section" aria-labelledby="guide-requests-heading">
+            <div className="guide-requests-section__head">
+              <FaClipboardList className="guide-requests-section__icon" aria-hidden />
+              <h2 id="guide-requests-heading" className="guide-requests-section__title">
+                My Guide Requests
+              </h2>
+            </div>
+            <div className="guide-requests-grid">
               {bookings.map(booking => (
-                <div key={booking.id} className="booking-card" style={{
-                  padding: '15px',
-                  backgroundColor: 'white',
-                  borderRadius: '8px',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-                  borderLeft: `5px solid ${
-                    booking.status === 'accepted' ? '#2ecc71' : 
-                    booking.status === 'quoted' ? '#3498db' : '#f1c40f'
-                  }`
-                }}>
-                  <p style={{ fontWeight: 'bold', margin: '0 0 5px 0' }}>{booking.guide_name}</p>
-                  <p style={{ fontSize: '0.85rem', color: '#666', marginBottom: '10px' }}>{booking.itinerary_title}</p>
-                  
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span className={`status-badge status-${booking.status}`} style={{ fontSize: '0.75rem' }}>
-                      {booking.status.toUpperCase()}
+                <article
+                  key={booking.id}
+                  className="guide-request-card"
+                  data-status={booking.status}
+                >
+                  <header className="guide-request-card__header">
+                    <div>
+                      <h3 className="guide-request-card__name">{booking.guide_name}</h3>
+                      <p className="guide-request-card__trip">{booking.itinerary_title}</p>
+                    </div>
+                  </header>
+
+                  <div className="guide-request-card__meta">
+                    <span className={`guide-request-pill guide-request-pill--${booking.status}`}>
+                      {booking.status.replace(/_/g, ' ')}
                     </span>
-                    {booking.quoted_price && (
-                      <span style={{ fontWeight: 'bold', color: '#2ecc71' }}>{booking.quoted_price}</span>
+                    {booking.quoted_price != null && booking.quoted_price !== '' && (
+                      <span className="guide-request-card__price">
+                        <span className="guide-request-card__price-label">Quote</span>
+                        <span className="guide-request-card__price-value">{booking.currency || 'LKR'} {booking.quoted_price}</span>
+                      </span>
                     )}
                   </div>
 
                   {booking.status === 'accepted' && (
-                    <div style={{ marginTop: '10px', padding: '10px', backgroundColor: '#e8f5e9', borderRadius: '4px', fontSize: '0.85rem' }}>
-                      <p style={{ margin: '0 0 5px 0' }}><strong>Guide Contact:</strong> <a href={`tel:${booking.guide_contact}`} style={{ color: '#2e7d32', fontWeight: 'bold' }}>{booking.guide_contact}</a></p>
-                      <p style={{ margin: 0 }}><strong>Email:</strong> {booking.guide_email}</p>
+                    <div className="guide-request-contact">
+                      <p className="guide-request-contact__line">
+                        <span className="guide-request-contact__key">Phone</span>
+                        <a href={`tel:${booking.guide_contact}`}>{booking.guide_contact || '—'}</a>
+                      </p>
+                      <p className="guide-request-contact__line">
+                        <span className="guide-request-contact__key">Email</span>
+                        {booking.guide_email ? (
+                          <a href={`mailto:${booking.guide_email}`}>{booking.guide_email}</a>
+                        ) : (
+                          <span className="guide-request-contact__empty">—</span>
+                        )}
+                      </p>
                     </div>
                   )}
 
                   {booking.status === 'quoted' && (
-                    <div style={{ marginTop: '15px', display: 'flex', gap: '10px' }}>
-                      <button 
-                        className="btn btn-success" 
-                        style={{ flex: 1, padding: '5px', fontSize: '0.8rem' }}
+                    <div className="guide-request-actions guide-request-actions--split">
+                      <button
+                        type="button"
+                        className="guide-request-btn guide-request-btn--success"
                         onClick={() => handleBookingAction(booking.id, 'accept')}
                       >
-                        Accept Price
+                        Accept price
                       </button>
-                      <button 
-                        className="btn btn-danger" 
-                        style={{ flex: 1, padding: '5px', fontSize: '0.8rem' }}
+                      <button
+                        type="button"
+                        className="guide-request-btn guide-request-btn--danger-outline"
                         onClick={() => handleBookingAction(booking.id, 'reject')}
                       >
                         Decline
@@ -249,79 +269,94 @@ const TravelGuidePage = () => {
                   )}
 
                   {booking.status === 'pending' && (
-                    <div style={{ marginTop: '15px', display: 'flex', gap: '10px' }}>
+                    <div className="guide-request-actions">
                       <button
-                        className="btn btn-danger"
-                        style={{ flex: 1, padding: '5px', fontSize: '0.8rem' }}
+                        type="button"
+                        className="guide-request-btn guide-request-btn--danger-outline"
                         onClick={() => handleCancelBooking(booking.id)}
                       >
-                        Cancel Request
+                        Cancel request
                       </button>
                     </div>
                   )}
 
                   {(booking.status === 'cancelled' || booking.status === 'rejected') && (
-                    <div style={{ marginTop: '15px', display: 'flex', gap: '10px' }}>
-                      <button 
-                        className="btn btn-danger" 
-                        style={{ flex: 1, padding: '5px', fontSize: '0.8rem' }}
+                    <div className="guide-request-actions">
+                      <button
+                        type="button"
+                        className="guide-request-btn guide-request-btn--danger"
                         onClick={() => handleDeleteBooking(booking.id)}
                       >
-                        Delete Request
+                        Delete request
                       </button>
                     </div>
                   )}
 
-                  <div style={{ marginTop: '12px' }}>
+                  <div className="guide-request-actions">
                     <button
                       type="button"
-                      className="btn btn-secondary"
-                      style={{ width: '100%', padding: '6px', fontSize: '0.8rem' }}
+                      className="guide-request-btn guide-request-btn--secondary"
                       onClick={() => setExpandedBookingId(prev => (prev === booking.id ? null : booking.id))}
                     >
-                      {expandedBookingId === booking.id ? 'Hide Messages' : 'Message / Conversation'}
+                      <FaComments className="guide-request-btn__icon" aria-hidden />
+                      {expandedBookingId === booking.id ? 'Hide messages' : 'Messages'}
                     </button>
                   </div>
 
                   {expandedBookingId === booking.id && (
-                    <div style={{ marginTop: '12px', backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px' }}>
-                      <p style={{ margin: '0 0 8px 0', fontWeight: 'bold', fontSize: '0.85rem' }}>Message Your Guide</p>
-                      <textarea
-                        rows={3}
-                        value={messageTextByBooking[booking.id] || ''}
-                        onChange={(e) => setMessageTextByBooking(prev => ({
-                          ...prev,
-                          [booking.id]: e.target.value
-                        }))}
-                        placeholder="Ask for clarification, share a note, or confirm details..."
-                        style={{ width: '100%', border: '1px solid #d1d5db', borderRadius: '6px', padding: '8px', fontSize: '0.82rem', marginBottom: '8px', resize: 'vertical' }}
-                      />
-                      <button
-                        type="button"
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => handleSendBookingMessage(booking.id)}
-                      >
-                        Send Message
-                      </button>
-
+                    <div className="guide-request-messenger">
+                      <h4 className="guide-request-messenger__title">Conversation</h4>
+                      
                       {bookingMessagesByBooking[booking.id]?.length > 0 && (
-                        <div style={{ marginTop: '10px', backgroundColor: '#f8fafc', border: '1px solid #dbeafe', borderRadius: '8px', padding: '8px', maxHeight: '160px', overflowY: 'auto' }}>
-                          <p style={{ margin: '0 0 8px 0', fontWeight: 'bold', fontSize: '0.82rem', color: '#334155' }}>Conversation</p>
-                          {bookingMessagesByBooking[booking.id].map((msg) => (
-                            <div key={msg.id} style={{ marginBottom: '8px' }}>
-                              <div style={{ fontSize: '0.75rem', color: '#475569', marginBottom: '2px' }}>
-                                <strong>{msg.author_email === user.email ? 'You' : msg.author_email || 'Guide'}</strong> • {new Date(msg.created_at).toLocaleString()}
+                        <div className="guide-request-messenger__thread-wrap">
+                          <div className="guide-request-messenger__thread">
+                            {bookingMessagesByBooking[booking.id].map(m => (
+                              <div
+                                key={m.id}
+                                className={`guide-request-bubble ${m.author_email === user.email ? 'guide-request-bubble--me' : 'guide-request-bubble--guide'}`}
+                              >
+                                <div className="guide-request-bubble__meta">
+                                  <strong className="guide-request-bubble__who">
+                                    {m.author_email === user.email ? 'You' : 'Guide'}
+                                  </strong>
+                                  <span>{new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                </div>
+                                <div className="guide-request-bubble__text">{m.message}</div>
                               </div>
-                              <div style={{ fontSize: '0.82rem', color: '#111827', whiteSpace: 'pre-wrap', lineHeight: 1.35 }}>
-                                {msg.message}
-                              </div>
-                            </div>
-                          ))}
+                            ))}
+                          </div>
                         </div>
                       )}
+
+                      <div className="guide-request-messenger__composer">
+                        <input
+                          type="text"
+                          className="guide-request-messenger__input"
+                          value={messageTextByBooking[booking.id] || ''}
+                          onChange={(e) => setMessageTextByBooking(prev => ({
+                            ...prev,
+                            [booking.id]: e.target.value
+                          }))}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleSendBookingMessage(booking.id);
+                            }
+                          }}
+                          placeholder="Write to your guide..."
+                        />
+                        <button
+                          type="button"
+                          className="guide-request-messenger__send"
+                          aria-label="Send message"
+                          onClick={() => handleSendBookingMessage(booking.id)}
+                        >
+                          <FaPaperPlane />
+                        </button>
+                      </div>
                     </div>
                   )}
-                </div>
+                </article>
               ))}
             </div>
           </section>
@@ -332,7 +367,8 @@ const TravelGuidePage = () => {
         ) : filteredGuides.length > 0 ? (
           <div>
             <p className="results-count">Found {filteredGuides.length} guide(s)</p>
-            <div className="guides-grid">
+            <div className="guides-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px' }}>
+
               {filteredGuides.map(guide => (
                 <div key={guide.id} className="guide-card">
                   <div className="guide-image">
@@ -342,45 +378,55 @@ const TravelGuidePage = () => {
                     />
                   </div>
                   <div className="guide-content">
-                    <h3>{guide.full_name}</h3>
-                    <div className="guide-location-badge">
-                      📍 {guide.covered_locations || 'Island Wide'}
+                    <div className="guide-header">
+                      <div>
+                        <h3>{guide.full_name}</h3>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 'bold' }}>ID: {formatUserId(guide.user_id || guide.id, 'guide')}</span>
+                      </div>
+                      {guide.license_number && (
+                        <span className="professional-badge">
+                          <FaCheckCircle /> Verified
+                        </span>
+                      )}
                     </div>
-                    <p className="specialization">{guide.specialization || 'Local Guide'}</p>
-                    <p className="bio">{(guide.bio || 'No bio available').substring(0, 150)}...</p>
+                    <div style={{ marginTop: '10px' }}>
+                      {guide.review_count > 0 ? (
+                        <p className="rating" style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#f59e0b', fontWeight: 'bold', margin: '5px 0' }}>
+                          <FaStar /> {parseFloat(guide.average_rating).toFixed(1)} <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 'normal' }}>({guide.review_count} reviews)</span>
+                        </p>
+                      ) : (
+                        <p className="rating" style={{ display: 'flex', alignItems: 'center', gap: '5px', color: 'var(--text-muted)', fontSize: '0.9rem', margin: '5px 0' }}>
+                          No reviews yet
+                        </p>
+                      )}
+                    </div>
                     
-                    <div className="guide-stats">
-                      {guide.experience_years > 0 && (
-                        <span>✓ {guide.experience_years} years experience</span>
-                      )}
-                      {guide.rating && (
-                        <span>⭐ {guide.rating}/5</span>
-                      )}
-                      {guide.hourly_rate > 0 && (
-                        <span className="price">${guide.hourly_rate}/hr</span>
-                      )}
-                    </div>
-
-                    <div className="guide-languages">
-                      <strong>Languages:</strong> {guide.languages || 'English'}
-                    </div>
-
-                    <div className="guide-actions">
+                    <div className="guide-actions" style={{ marginTop: 'auto', paddingTop: '16px' }}>
                       <button 
-                        onClick={() => handleViewPortfolio(guide)}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleViewPortfolio(guide);
+                        }}
                         className="btn btn-primary"
+                        style={{ width: '100%', borderRadius: '10px', padding: '10px', fontSize: '0.9rem', fontWeight: '700' }}
                       >
                         View Portfolio
                       </button>
                       <button 
-                        onClick={() => handleContactGuide(guide)}
-                        className="btn btn-success"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleContactGuide(guide);
+                        }}
+                        className="btn btn-outline"
+                        style={{ width: '100%', borderRadius: '10px', padding: '10px', fontSize: '0.9rem', fontWeight: '600', marginTop: '8px', border: '1.5px solid var(--border)', background: 'transparent', color: 'var(--text-body)' }}
                       >
                         Contact
                       </button>
                     </div>
-                  </div>
                 </div>
+              </div>
               ))}
             </div>
           </div>
@@ -402,7 +448,7 @@ const TravelGuidePage = () => {
                   className="modal-avatar"
                 />
                 <div>
-                  <h2>{selectedGuide.full_name}</h2>
+                  <h2>{selectedGuide.full_name} <span style={{ fontSize: '0.9rem', color: 'var(--primary)', marginLeft: '10px' }}>ID: {formatUserId(selectedGuide.user_id || selectedGuide.id, 'guide')}</span></h2>
                   <p className="modal-location">📍 {selectedGuide.covered_locations || 'Island Wide'}</p>
                   <p className="specialization" style={{ margin: 0, fontSize: '0.9rem' }}>{selectedGuide.specialization || 'Local Guide'}</p>
                 </div>
@@ -412,32 +458,53 @@ const TravelGuidePage = () => {
                   <h3>About Me</h3>
                   <p>{selectedGuide.bio || 'No bio available.'}</p>
                 </div>
-                
-                <div className="modal-stats-grid">
-                    <div className="modal-stat">
-                        <span className="stat-icon">🕒</span>
-                        <span className="stat-val">{selectedGuide.experience_years || 0}</span>
-                        <span className="stat-lbl">Years Exp.</span>
+                          <div className="modal-stats-grid" style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', 
+                  gap: '15px',
+                  backgroundColor: 'rgba(255,255,255,0.02)',
+                  padding: '20px',
+                  borderRadius: '16px',
+                  border: '1px solid var(--border)'
+                }}>
+                    <div className="modal-stat" style={{ textAlign: 'center' }}>
+                        <FaHistory style={{ color: 'var(--primary)', fontSize: '1.2rem', marginBottom: '8px' }} />
+                        <div style={{ fontWeight: '800', fontSize: '1.1rem', color: 'var(--text-head)' }}>{selectedGuide.experience_years || 0}</div>
+                        <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Years Exp.</div>
                     </div>
-                    <div className="modal-stat">
-                        <span className="stat-icon">💬</span>
-                        <span className="stat-val">{selectedGuide.languages?.split(',')[0] || 'English'}</span>
-                        <span className="stat-lbl">Primary Lang.</span>
+                    <div className="modal-stat" style={{ textAlign: 'center' }}>
+                        <FaLanguage style={{ color: 'var(--primary)', fontSize: '1.2rem', marginBottom: '8px' }} />
+                        <div style={{ fontWeight: '800', fontSize: '1.1rem', color: 'var(--text-head)' }}>{selectedGuide.languages?.split(',')[0] || 'English'}</div>
+                        <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Primary</div>
                     </div>
-                    <div className="modal-stat">
-                        <span className="stat-icon">📜</span>
-                        <span className="stat-val">{selectedGuide.license_number ? 'Yes' : 'No'}</span>
-                        <span className="stat-lbl">Licensed</span>
+                    <div className="modal-stat" style={{ textAlign: 'center' }}>
+                        <FaIdCard style={{ color: 'var(--primary)', fontSize: '1.2rem', marginBottom: '8px' }} />
+                        <div style={{ fontWeight: '800', fontSize: '1.1rem', color: 'var(--text-head)' }}>{selectedGuide.license_number ? 'Yes' : 'No'}</div>
+                        <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Licensed</div>
                     </div>
+                      <div className="modal-stat" style={{ textAlign: 'center' }}>
+                          <div style={{ fontWeight: '800', fontSize: '1.1rem', color: 'var(--text-head)', marginTop: '8px' }}>{selectedGuide.hourly_rate}</div>
+                          <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Hourly Rate (LKR)</div>
+                      </div>
                 </div>
 
-                <div className="modal-section" style={{ marginTop: '20px' }}>
-                    <h3>Languages</h3>
-                    <p>{selectedGuide.languages || 'English'}</p>
+                <div className="modal-section" style={{ marginTop: '24px' }}>
+                    <h3 style={{ fontSize: '0.9rem', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '12px' }}>Linguistic Proficiency</h3>
+                    <p style={{ fontWeight: '600' }}>{selectedGuide.languages || 'English'}</p>
+                </div>
+
+                <div className="modal-section" style={{ marginTop: '30px' }}>
+                    <ReviewSection targetId={selectedGuide.user_id || selectedGuide.id} type="guide" />
                 </div>
               </div>
-              <div className="modal-footer">
-                <button className="btn btn-success" onClick={() => { setShowPortfolio(false); setShowContact(true); }}>Contact Guide</button>
+              <div className="modal-footer" style={{ padding: '20px', borderTop: '1px solid var(--border)' }}>
+                <button 
+                  className="btn btn-success" 
+                  style={{ width: '100%', padding: '14px', borderRadius: '12px', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }} 
+                  onClick={() => { setShowPortfolio(false); setShowContact(true); }}
+                >
+                  Connect with this Guide
+                </button>
               </div>
             </div>
           </div>

@@ -20,7 +20,8 @@ API.interceptors.request.use(
 API.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    // Do not redirect on 401 if the request was to any auth endpoint
+    if (error.response?.status === 401 && !error.config.url.includes('/api/auth/')) {
       // Token expired or invalid
       localStorage.removeItem('token');
       localStorage.removeItem('user');

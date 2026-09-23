@@ -15,6 +15,7 @@ import TravelGuidePage from './pages/TravelGuidePage';
 import ItineraryPage from './pages/ItineraryPage';
 import DashboardPage from './pages/DashboardPage';
 import ClientsPage from './pages/ClientsPage';
+import AdminDashboard from './pages/AdminDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
@@ -55,6 +56,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <ClientsPage />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin-dashboard" 
+                element={
+                  <ProtectedRoute>
+                    <AdminDashboard />
                   </ProtectedRoute>
                 } 
               />

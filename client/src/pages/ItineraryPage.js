@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { usePlace } from '../context/PlaceContext';
@@ -8,49 +8,64 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
-<<<<<<< HEAD
-=======
 import { 
   FaRoute, FaClock, FaMoneyBillWave, FaBullseye, FaSearch, 
   FaTimes, FaCalendarAlt, FaPhone, FaExclamationTriangle,
   FaPlus, FaPaperPlane, FaChevronDown
 } from 'react-icons/fa';
->>>>>>> f9f936a (Refactor components by removing unused variables and imports for improved code clarity)
 import './ItineraryPage.css';
 
 // GraphHopper free demo key — replace with your own from graphhopper.com
 const GRAPHHOPPER_API_KEY = 'f8512521-29f8-40cc-ad0a-64bed3f3c40b';
 
-const fetchGraphHopperRoute = async (coordPairs) => {
+const fetchGraphHopperRoute = async (coordPairs, attempt = 1) => {
   if (coordPairs.length < 2) return null;
   const pointsParam = coordPairs
     .map(([lat, lng]) => `point=${lat},${lng}`)
     .join('&');
   const url = `https://graphhopper.com/api/1/route?${pointsParam}&vehicle=car&locale=en&calc_points=true&points_encoded=true&instructions=false&key=${GRAPHHOPPER_API_KEY}`;
-  const res = await fetch(url);
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(`GraphHopper request failed (${res.status}): ${data.message || 'unknown error'}`);
-  }
-  if (!data.paths || !data.paths.length) throw new Error('No route found');
-  const path = data.paths[0];
+  
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    
+    if (!res.ok) {
+      // Professional Hack: If a point is unreachable by car (off-road), the API returns "Cannot find point X".
+      // We catch this, remove that specific point from the routing request, and try again.
+      // This ensures 90% of the route still looks professional even if one point is messy.
+      const match = data.message?.match(/Cannot find point (\d+)/);
+      if (match && attempt < 3 && coordPairs.length > 2) {
+        const pointIdx = parseInt(match[1]);
+        console.warn(`Routing: Point ${pointIdx} is off-road. Retrying without it...`);
+        const reducedCoords = [...coordPairs];
+        reducedCoords.splice(pointIdx, 1);
+        return fetchGraphHopperRoute(reducedCoords, attempt + 1);
+      }
+      throw new Error(`GraphHopper request failed (${res.status}): ${data.message || 'unknown error'}`);
+    }
+    
+    if (!data.paths || !data.paths.length) throw new Error('No route found');
+    const path = data.paths[0];
 
-  let points;
-  if (typeof path.points === 'string') {
-    points = decodePolyline(path.points);
-  } else if (path.points?.coordinates) {
-    points = path.points.coordinates.map(([lng, lat]) => [lat, lng]);
-  } else if (Array.isArray(path.points)) {
-    points = path.points.map(([lng, lat]) => [lat, lng]);
-  } else {
-    throw new Error('Unsupported GraphHopper point format');
-  }
+    let points;
+    if (typeof path.points === 'string') {
+      points = decodePolyline(path.points);
+    } else if (path.points?.coordinates) {
+      points = path.points.coordinates.map(([lng, lat]) => [lat, lng]);
+    } else if (Array.isArray(path.points)) {
+      points = path.points.map(([lng, lat]) => [lat, lng]);
+    } else {
+      throw new Error('Unsupported GraphHopper point format');
+    }
 
-  return {
-    points,
-    distanceKm: (path.distance / 1000).toFixed(1),
-    durationMin: Math.round(path.time / 60000),
-  };
+    return {
+      points,
+      distanceKm: (path.distance / 1000).toFixed(1),
+      durationMin: Math.round(path.time / 60000),
+    };
+  } catch (err) {
+    throw err;
+  }
 };
 
 // Google-style encoded polyline decoder
@@ -83,6 +98,7 @@ L.Marker.prototype.options.icon = DefaultIcon;
 const ItineraryPage = () => {
   const [searchParams] = useSearchParams();
   const placeToAddParam = searchParams.get('add');
+  const guideSuggestionsRef = useRef(null);
   const { user } = useAuth();
   const { places } = usePlace();
   const navigate = useNavigate();
@@ -95,12 +111,31 @@ const ItineraryPage = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [availablePlaces, setAvailablePlaces] = useState([]);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   // UI State
   const [showAddPlaceDropdown, setShowAddPlaceDropdown] = useState(false);
   const [searchPlaceTerm, setSearchPlaceTerm] = useState('');
+  const [selectedSearchCategory, setSelectedSearchCategory] = useState(null);
   const [pendingPlaceToAddId, setPendingPlaceToAddId] = useState(null);
   const [targetItineraryId, setTargetItineraryId] = useState(null);
+
+  const searchCategories = [
+    { id: 'Historical', icon: '🏛️' },
+    { id: 'Religious', icon: '🙏' },
+    { id: 'Nature', icon: '🌿' },
+    { id: 'Tourist Attraction', icon: '🏞️' },
+    { id: 'Cultural', icon: '🎭' }
+  ];
+
+  const filteredPlaces = availablePlaces.filter(p => {
+    const matchesSearch = p.name.toLowerCase().includes(searchPlaceTerm.toLowerCase()) || 
+                         p.category?.toLowerCase().includes(searchPlaceTerm.toLowerCase());
+    const matchesCat = !selectedSearchCategory || p.category === selectedSearchCategory;
+    return matchesSearch && matchesCat;
+  });
+
+  const showSearchResults = searchPlaceTerm.length > 0 || selectedSearchCategory !== null;
   const [placeAddError, setPlaceAddError] = useState('');
 
   // GraphHopper Route State
@@ -180,6 +215,14 @@ const ItineraryPage = () => {
     }
   }, [user, navigate, loadPlaces, fetchItineraries, fetchTouristBookings, placeToAddParam]);
 
+  useEffect(() => {
+    if (showGuideSuggestions && guideSuggestionsRef.current) {
+      setTimeout(() => {
+        guideSuggestionsRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+    }
+  }, [showGuideSuggestions]);
+
   const handleCreateItinerary = async (e) => {
     e.preventDefault();
     if (!newItinerary.title) return setError('Please enter a title');
@@ -196,6 +239,7 @@ const ItineraryPage = () => {
       setSelectedItinerary(created);
       setNewItinerary({ title: '', startDate: '', endDate: '' });
       setSuccess('Itinerary created successfully!');
+      setShowCreateModal(false);
       
       const placeToAddId = placeToAddParam;
       if (placeToAddId) handleAddPlaceToItinerary(created.id, parseInt(placeToAddId));
@@ -369,10 +413,7 @@ const ItineraryPage = () => {
     return { markers: valid, polyline: coords };
   };
 
-  const filteredPlaces = availablePlaces.filter(place =>
-    place.name.toLowerCase().includes(searchPlaceTerm.toLowerCase()) ||
-    (place.category && place.category.toLowerCase().includes(searchPlaceTerm.toLowerCase()))
-  );
+
 
   const currentItineraryBookings = touristBookings.filter(
     (booking) => booking.itinerary_id === selectedItinerary?.id
@@ -403,20 +444,41 @@ const ItineraryPage = () => {
   }, [currentItineraryBookings]);
 
   useEffect(() => {
-    const validPlaces = (selectedItinerary?.places || []).filter(p => p.latitude && p.longitude);
-    if (validPlaces.length < 2) {
+    // 1. Filter for places that actually have coordinates
+    const placesWithCoords = (selectedItinerary?.places || []).filter(p => {
+      const lat = parseFloat(p.latitude);
+      const lng = parseFloat(p.longitude);
+      return !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0;
+    });
+
+    if (placesWithCoords.length < 2) {
       setGhRoute(null);
       setGhError('');
       return;
     }
-    const coords = validPlaces.map(p => [parseFloat(p.latitude), parseFloat(p.longitude)]);
+
+    // 2. Map to coordinate pairs and filter out consecutive identical points (API throws error on these)
+    const rawCoords = placesWithCoords.map(p => [parseFloat(p.latitude), parseFloat(p.longitude)]);
+    const cleanCoords = rawCoords.filter((coord, idx, self) => {
+      if (idx === 0) return true;
+      const prev = self[idx - 1];
+      // Skip if exactly the same as previous (GraphHopper requirement)
+      return coord[0] !== prev[0] || coord[1] !== prev[1];
+    });
+
+    if (cleanCoords.length < 2) {
+      setGhRoute(null);
+      setGhError('');
+      return;
+    }
+
     setGhLoading(true);
     setGhError('');
-    fetchGraphHopperRoute(coords)
+    fetchGraphHopperRoute(cleanCoords)
       .then(route => { setGhRoute(route); })
       .catch(err => {
         console.error('GraphHopper error:', err);
-        setGhError('Could not load road route — showing straight lines instead.');
+        setGhError('Road route unavailable for these locations — showing straight lines.');
         setGhRoute(null);
       })
       .finally(() => setGhLoading(false));
@@ -428,50 +490,116 @@ const ItineraryPage = () => {
 
   return (
     <main className="itinerary-page">
-      <div className="container">
-        <h1>My Travel Itineraries</h1>
-        <p>Plan and organize your trips</p>
+      <div className="container" style={{ maxWidth: '1400px' }}>
+        <div className="itinerary-top-bar" style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          marginTop: '20px',
+          marginBottom: '40px', 
+          background: 'var(--bg-card)', 
+          padding: '24px 40px', 
+          borderRadius: '24px', 
+          border: '1px solid var(--border)', 
+          boxShadow: 'var(--shadow)',
+          animation: 'modalPop 0.4s ease-out'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '32px' }}>
+            <h2 style={{ margin: 0, fontSize: '1.8rem', fontWeight: '900', color: 'var(--text-head)', letterSpacing: '-0.03em' }}>Your Itineraries</h2>
+            <div style={{ position: 'relative' }}>
+              <select 
+                value={selectedItinerary?.id || ''}
+                onChange={(e) => {
+                  const chosen = itineraries.find(it => it.id === parseInt(e.target.value));
+                  if (chosen) setSelectedItinerary(chosen);
+                }}
+                style={{
+                  padding: '14px 56px 14px 24px',
+                  borderRadius: '16px',
+                  border: '2px solid var(--border)',
+                  backgroundColor: 'var(--bg-page)',
+                  color: 'var(--text-head)',
+                  fontSize: '1.05rem',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  appearance: 'none',
+                  minWidth: '320px',
+                  outline: 'none',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+                }}
+                className="itinerary-dropdown-select"
+              >
+                <option value="" disabled>Select trip to view...</option>
+                {itineraries.map(it => (
+                  <option key={it.id} value={it.id}>{it.title || 'Untitled Trip'}</option>
+                ))}
+              </select>
+              <FaChevronDown style={{ 
+                position: 'absolute', 
+                right: '24px', 
+                top: '50%', 
+                transform: 'translateY(-50%)', 
+                pointerEvents: 'none', 
+                fontSize: '0.9rem', 
+                color: 'var(--primary)',
+                opacity: 0.9
+              }} />
+            </div>
+          </div>
+
+          <button 
+            className="create-new-btn"
+            onClick={() => setShowCreateModal(true)}
+            style={{
+              background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+              color: 'white',
+              border: 'none',
+              padding: '16px 36px',
+              borderRadius: '999px',
+              fontSize: '1.1rem',
+              fontWeight: '800',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              boxShadow: '0 8px 25px rgba(99, 102, 241, 0.4)',
+              letterSpacing: '-0.01em'
+            }}
+          >
+            <FaPlus /> Create New One
+          </button>
+        </div>
 
         {error && <div className="error">{error}</div>}
         {success && <div className="success">{success}</div>}
 
-        <div className="itinerary-layout">
-          <aside className="itinerary-sidebar">
-            <div className="create-itinerary">
-              <h3>Create New Itinerary</h3>
-              <form onSubmit={handleCreateItinerary} className="form">
-                <input type="text" placeholder="Title" value={newItinerary.title} onChange={(e) => setNewItinerary({...newItinerary, title: e.target.value})} required />
-                <input type="date" min={today} value={newItinerary.startDate} onChange={(e) => setNewItinerary({...newItinerary, startDate: e.target.value})} />
-                <input type="date" min={newItinerary.startDate || today} value={newItinerary.endDate} onChange={(e) => setNewItinerary({...newItinerary, endDate: e.target.value})} />
-                <button type="submit" className="btn btn-primary btn-block">Create Itinerary</button>
-              </form>
-            </div>
+                <div className="itinerary-top-bar" style={{ display: 'none' }}></div> {/* Hidden since moved to top */}
 
-            <div className="itineraries-list">
-              <h3>Your Itineraries</h3>
-              {loading && !itineraries.length ? <p>Loading...</p> : itineraries.map(it => (
-                <div key={it.id} className={`itinerary-item ${selectedItinerary?.id === it.id ? 'active' : ''}`} onClick={() => setSelectedItinerary(it)}>
-                  <strong>{it.title}</strong>
-                  <small>{it.start_date || 'No dates'}</small>
-                </div>
-              ))}
-            </div>
-          </aside>
-
-          <section className="itinerary-content">
+        <div className="itinerary-layout" style={{ display: 'block' }}>
+          <section className="itinerary-content" style={{ padding: 0, background: 'transparent', border: 'none', boxShadow: 'none' }}>
             {selectedItinerary ? (
               <div className="itinerary-detail">
-                <div className="detail-header">
-                  <h2>{selectedItinerary.title}</h2>
-                  <button onClick={() => handleDeleteItinerary(selectedItinerary.id)} className="btn btn-danger btn-sm">Delete</button>
+                <div className="detail-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '32px' }}>
+                  <div style={{ borderLeft: '4px solid var(--primary)', paddingLeft: '20px' }}>
+                    <h1 style={{ fontSize: '2.5rem', margin: 0, lineHeight: 1.1 }}>{selectedItinerary.title}</h1>
+                    <p style={{ margin: '8px 0 0', opacity: 0.6, fontSize: '0.95rem' }}>
+                      {selectedItinerary.start_date 
+                        ? `${new Date(selectedItinerary.start_date).toLocaleDateString()} — ${new Date(selectedItinerary.end_date).toLocaleDateString()}`
+                        : 'Custom trip plan'}
+                    </p>
+                  </div>
+                  <button onClick={() => handleDeleteItinerary(selectedItinerary.id)} className="btn btn-danger" style={{ borderRadius: '12px', padding: '10px 20px', fontSize: '0.9rem' }}>Delete Plan</button>
                 </div>
 
-                {/* LEAFLET MAP with GraphHopper road route */}
-                <div className="map-preview-container">
+                <div className="itinerary-main-section" style={{ display: 'flex', gap: '40px', alignItems: 'flex-start', marginBottom: '60px' }}>
+                  <div className="map-preview-container" style={{ flex: 1.6, height: '600px' }}>
                   <MapContainer 
                     center={polyline.length > 0 ? polyline[0] : [7.8731, 80.7718]} 
                     zoom={polyline.length > 0 ? 9 : 7} 
                     className="itinerary-map"
+                    style={{ height: '100%', borderRadius: '24px', boxShadow: 'var(--shadow)', border: '1px solid var(--border)' }}
                   >
                     <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                     {markers.map((place, idx) => {
@@ -482,7 +610,7 @@ const ItineraryPage = () => {
                             <div class="map-marker-img-wrap">
                               ${place.image_url
                                 ? `<img src="${place.image_url}" class="map-marker-img" alt="${place.name}" />`
-                                : `<div class="map-marker-fallback">🏞️</div>`
+                                : `<div class="map-marker-fallback"><svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 512 512" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg"><path d="M464 448H48c-26.51 0-48-21.49-48-48V112c0-26.51 21.49-48 48-48h416c26.51 0 48 21.49 48 48v288c0 26.51-21.49 48-48 48zM112 120c-30.928 0-56 25.072-56 56s25.072 56 56 56 56-25.072 56-56-25.072-56-56-56zM64 384h384V272l-87.515-87.515c-4.686-4.686-12.284-4.686-16.971 0L208 320l-40-40-104 104z"></path></svg></div>`
                               }
                             </div>
                             <div class="map-marker-tail"></div>
@@ -512,57 +640,254 @@ const ItineraryPage = () => {
                   </MapContainer>
                 </div>
 
-                {/* JOURNEY SUMMARY */}
-                {(ghRoute || ghLoading || ghError) && (
-                  <div className="journey-summary">
-                    {ghLoading && (
-                      <div className="journey-summary__loading">
-                        <span className="journey-spinner" /> Calculating road route…
+                  {/* ADD PLACE LOGIC MOVED HERE FOR SIDE-BY-SIDE */}
+                  <div className="itinerary-places" style={{ flex: 1, marginTop: 0, background: 'var(--bg-card)', padding: '32px', borderRadius: '24px', border: '1px solid var(--border)', boxShadow: 'var(--shadow)', minHeight: '600px', display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                      <h3 style={{ fontSize: '1.4rem', fontWeight: '800', margin: 0, color: 'var(--text-head)' }}>Places in this Plan</h3>
+                      {!showAddPlaceDropdown && (
+                        <button 
+                          onClick={() => setShowAddPlaceDropdown(true)} 
+                          style={{ 
+                            padding: '8px 20px', 
+                            borderRadius: '12px', 
+                            background: 'var(--secondary)', 
+                            color: 'white', 
+                            border: 'none', 
+                            fontSize: '0.9rem', 
+                            fontWeight: '700', 
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            transition: 'all 0.2s',
+                            boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)'
+                          }}
+                        >
+                          <FaPlus style={{ fontSize: '0.8rem' }} /> Add Place
+                        </button>
+                      )}
+                    </div>
+
+                    {/* JOURNEY SUMMARY - MOVED HERE FOR COMPACT UI */}
+                    {(ghRoute || ghLoading || ghError) && (
+                      <div className="journey-summary" style={{ marginBottom: '24px', background: 'transparent', padding: 0, border: 'none', boxShadow: 'none' }}>
+                        {ghLoading && (
+                          <div className="journey-summary__loading" style={{ padding: '15px', borderRadius: '12px', background: 'var(--bg-page)', border: '1px solid var(--border)' }}>
+                            <span className="journey-spinner" /> Calculating route…
+                          </div>
+                        )}
+                        {ghError && !ghLoading && (
+                          <p className="journey-summary__error" style={{ fontSize: '0.85rem' }}><FaExclamationTriangle /> {ghError}</p>
+                        )}
+                        {ghRoute && !ghLoading && (
+                          <div className="journey-summary__stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+                            <div className="journey-stat" style={{ padding: '12px', borderRadius: '16px', background: 'var(--bg-page)', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center', textAlign: 'center' }}>
+                              <span className="journey-stat__icon" style={{ background: 'rgba(79, 70, 229, 0.1)', color: 'var(--primary)', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '10px' }}><FaRoute /></span>
+                              <div>
+                                <span className="journey-stat__label" style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', opacity: 0.6 }}>Distance</span>
+                                <span className="journey-stat__value" style={{ fontSize: '0.9rem', fontWeight: '800', display: 'block' }}>{ghRoute.distanceKm} km</span>
+                              </div>
+                            </div>
+                            <div className="journey-stat" style={{ padding: '12px', borderRadius: '16px', background: 'var(--bg-page)', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center', textAlign: 'center' }}>
+                              <span className="journey-stat__icon" style={{ background: 'rgba(16, 185, 129, 0.1)', color: 'var(--secondary)', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '10px' }}><FaClock /></span>
+                              <div>
+                                <span className="journey-stat__label" style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', opacity: 0.6 }}>Time</span>
+                                <span className="journey-stat__value" style={{ fontSize: '0.9rem', fontWeight: '800', display: 'block' }}>
+                                  {ghRoute.durationMin >= 60
+                                    ? `${Math.floor(ghRoute.durationMin / 60)}h ${ghRoute.durationMin % 60}m`
+                                    : `${ghRoute.durationMin}m`}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="journey-stat" style={{ padding: '12px', borderRadius: '16px', background: 'var(--bg-page)', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center', textAlign: 'center' }}>
+                              <span className="journey-stat__icon" style={{ background: 'rgba(245, 158, 11, 0.1)', color: 'var(--warning)', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '10px' }}><FaMoneyBillWave /></span>
+                              <div>
+                                <span className="journey-stat__label" style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', opacity: 0.6 }}>Cost</span>
+                                <span className="journey-stat__value" style={{ fontSize: '0.9rem', fontWeight: '800', display: 'block' }}>
+                                  LKR {(ghRoute.distanceKm * PRICE_PER_KM).toLocaleString()}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
-                    {ghError && !ghLoading && (
-                      <p className="journey-summary__error">⚠️ {ghError}</p>
-                    )}
-                    {ghRoute && !ghLoading && (
-                      <div className="journey-summary__stats">
-                        <div className="journey-stat">
-                          <span className="journey-stat__icon">🗺️</span>
-                          <div>
-                            <span className="journey-stat__label">Total Distance</span>
-                            <span className="journey-stat__value">{ghRoute.distanceKm} km</span>
-                          </div>
+                    {showAddPlaceDropdown && !isLinkingPlace && (
+                      <div className="add-place-section">
+                        <div className="add-place-header">
+                          <h3>Add a Place</h3>
+                          <button onClick={() => { setShowAddPlaceDropdown(false); setSearchPlaceTerm(''); }} className="add-place-close"><FaTimes /></button>
                         </div>
-                        <div className="journey-stat">
-                          <span className="journey-stat__icon">⏱️</span>
-                          <div>
-                            <span className="journey-stat__label">Est. Drive Time</span>
-                            <span className="journey-stat__value">
-                              {ghRoute.durationMin >= 60
-                                ? `${Math.floor(ghRoute.durationMin / 60)}h ${ghRoute.durationMin % 60}m`
-                                : `${ghRoute.durationMin} min`}
-                            </span>
-                          </div>
+                        <div className="place-search-wrapper">
+                          <span className="place-search-icon"><FaSearch /></span>
+                          <input
+                            type="text"
+                            placeholder="Search by name or category…"
+                            value={searchPlaceTerm}
+                            onChange={(e) => setSearchPlaceTerm(e.target.value)}
+                            className="place-search-input"
+                            autoFocus
+                          />
+                          {searchPlaceTerm && (
+                            <button className="place-search-clear" onClick={() => setSearchPlaceTerm('')}>✕</button>
+                          )}
                         </div>
-                        <div className="journey-stat">
-                          <span className="journey-stat__icon">💰</span>
-                          <div>
-                            <span className="journey-stat__label">Est. Transport Cost</span>
-                            <span className="journey-stat__value">
-                              LKR {(ghRoute.distanceKm * PRICE_PER_KM).toLocaleString()}
-                            </span>
-                          </div>
+
+                        {/* Category Chips Bar */}
+                        <div className="search-category-bar" style={{ display: 'flex', gap: '8px', overflowX: 'auto', marginBottom: '20px', paddingBottom: '8px', scrollbarWidth: 'none' }}>
+                          {searchCategories.map(cat => (
+                            <button
+                              key={cat.id}
+                              onClick={() => setSelectedSearchCategory(selectedSearchCategory === cat.id ? null : cat.id)}
+                              style={{
+                                padding: '8px 16px',
+                                borderRadius: '12px',
+                                background: selectedSearchCategory === cat.id ? 'var(--primary)' : 'var(--bg-page)',
+                                color: selectedSearchCategory === cat.id ? 'white' : 'var(--text-body)',
+                                border: '1px solid var(--border)',
+                                fontSize: '0.85rem',
+                                fontWeight: '600',
+                                whiteSpace: 'nowrap',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                transition: 'all 0.2s',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <span>{cat.icon}</span> {cat.id}
+                            </button>
+                          ))}
                         </div>
-                        <p className="journey-summary__disclaimer">* Price is a mock estimate based on LKR {PRICE_PER_KM}/km by car</p>
+
+                        {showSearchResults ? (
+                          <div className="place-suggestions">
+                            {filteredPlaces.length === 0 ? (
+                              <div className="place-suggestions__empty">No places match your search criteria.</div>
+                            ) : (
+                              filteredPlaces.map(p => (
+                                <button
+                                  key={p.id}
+                                  className="place-suggestion-card"
+                                  onClick={() => {
+                                    handleAddPlaceToItinerary(selectedItinerary.id, p.id);
+                                    setSearchPlaceTerm('');
+                                    setSelectedSearchCategory(null);
+                                  }}
+                                  style={{
+                                    animation: 'modalPop 0.3s ease-out'
+                                  }}
+                                >
+                                  <div className="place-suggestion-img-wrap">
+                                    {p.image_url
+                                      ? <img src={p.image_url} alt={p.name} className="place-suggestion-img" />
+                                      : <div className="place-suggestion-img-placeholder">🏞️</div>
+                                    }
+                                  </div>
+                                  <div className="place-suggestion-info">
+                                    <span className="place-suggestion-name" style={{ fontWeight: '700', fontSize: '1rem' }}>{p.name}</span>
+                                    {p.category && <span className="place-suggestion-cat" style={{ background: 'rgba(99, 102, 241, 0.1)', color: 'var(--primary)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', marginTop: '4px', display: 'inline-block' }}>{p.category}</span>}
+                                  </div>
+                                  <span className="place-suggestion-add" style={{ fontSize: '1.2rem', color: 'var(--primary)', fontWeight: '700' }}>+</span>
+                                </button>
+                              ))
+                            )}
+                          </div>
+                        ) : (
+                          <div style={{ textAlign: 'center', padding: '30px 20px', background: 'var(--bg-page)', borderRadius: '16px', border: '1px dashed var(--border)' }}>
+                            <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-muted)' }}>Type something or select a category to find places...</p>
+                          </div>
+                        )}
                       </div>
                     )}
+
+                    <div className="places-list" style={{ flex: 1, overflowY: 'auto' }}>
+                      {selectedItinerary.places?.length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)' }}>
+                          <p>No places added yet.</p>
+                          <p style={{ fontSize: '0.85rem' }}>Start by adding a destination below!</p>
+                        </div>
+                      ) : (
+                        selectedItinerary.places?.map((item, index) => (
+                          <div key={item.id || index} className="place-item" style={{ 
+                            background: 'var(--bg-page)', 
+                            padding: '16px', 
+                            borderRadius: '16px', 
+                            marginBottom: '12px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '16px',
+                            border: '1px solid var(--border)',
+                            transition: 'all 0.2s'
+                          }}>
+                            <div className="place-order" style={{ 
+                              width: '32px', 
+                              height: '32px', 
+                              background: 'var(--primary)', 
+                              color: 'white', 
+                              borderRadius: '50%', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'center',
+                              fontSize: '0.9rem',
+                              fontWeight: '700',
+                              flexShrink: 0
+                            }}>{index + 1}</div>
+                            <div className="place-details" style={{ flex: 1 }}>
+                              <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: '700' }}>{item.name}</h4>
+                              <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>{item.category || 'Point of Interest'}</p>
+                            </div>
+                            <button 
+                              onClick={() => handleRemovePlace(selectedItinerary.id, item.place_id)} 
+                              className="btn-remove"
+                              style={{
+                                background: 'rgba(239, 68, 68, 0.1)',
+                                color: '#ef4444',
+                                border: 'none',
+                                width: '32px',
+                                height: '32px',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                transition: 'all 0.2s'
+                              }}
+                            >
+                              <FaTimes style={{ fontSize: '0.8rem' }} />
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                    
+
+
+                    <div className="itinerary-actions" style={{ marginTop: '12px' }}>
+                      <button 
+                        onClick={handleRequestGuides} 
+                        className="btn btn-success confirm-btn" 
+                        style={{ width: '100%', borderRadius: '12px', padding: '12px', fontWeight: '700' }}
+                        disabled={loading || loadingGuides || !selectedItinerary.places?.length}
+                      >
+                        {loadingGuides
+                          ? <><FaSearch /> Finding Guides...</>
+                          : noGuidesFound
+                            ? 'Browse All Guides'
+                            : <><FaBullseye /> Find Suitable Guides</>
+                        }
+                      </button>
+                    </div>
                   </div>
-                )}
+                </div>
+
+
 
                 {/* GUIDE SUGGESTIONS */}
                 {showGuideSuggestions && (
-                  <div className="guide-suggestions">
+                  <div className="guide-suggestions" ref={guideSuggestionsRef}>
                     <div className="guide-suggestions-header">
-                      <h3>🎯 Recommended Travel Guides</h3>
+                      <h3><FaBullseye /> Recommended Travel Guides</h3>
                       <button 
                         onClick={() => {
                           setShowGuideSuggestions(false);
@@ -570,7 +895,7 @@ const ItineraryPage = () => {
                         }} 
                         className="btn btn-sm"
                       >
-                        ✕ Close
+                        <FaTimes /> Close
                       </button>
                     </div>
                     
@@ -601,27 +926,13 @@ const ItineraryPage = () => {
                                 <h4>{guide.full_name}</h4>
                                 <div className="guide-specialization">
                                   {guide.specialization && <span className="badge">{guide.specialization}</span>}
-                                  <span className="experience">{guide.experience_years || 0} years experience</span>
+                                  <span className="experience">{guide.experience_years} years experience</span>
                                 </div>
                               </div>
                             </div>
                             
                             <div className="guide-details">
                               {guide.bio && <p className="guide-bio">{guide.bio}</p>}
-
-                              <div className="guide-rating-strip" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
-                                <span className="badge" style={{ background: 'rgba(245, 158, 11, 0.12)', color: '#b45309' }}>
-                                  {guide.average_rating ? `${Number(guide.average_rating).toFixed(1)}/5` : 'New guide'}
-                                </span>
-                                <span className="badge" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#047857' }}>
-                                  {guide.review_count || 0} reviews
-                                </span>
-                                {guide.is_approved && (
-                                  <span className="badge" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#1d4ed8' }}>
-                                    Verified
-                                  </span>
-                                )}
-                              </div>
                               
                               <div className="guide-stats">
                                 <div className="stat">
@@ -633,17 +944,6 @@ const ItineraryPage = () => {
                                   <span className="stat-value">LKR {guide.hourly_rate}/hour</span>
                                 </div>
                               </div>
-                              
-                              {guide.match_reasons && guide.match_reasons.length > 0 && (
-                                <div className="matched-places" style={{ marginTop: '12px' }}>
-                                  <span className="match-label">Why this guide fits:</span>
-                                  <div className="matched-places-list">
-                                    {guide.match_reasons.slice(0, 3).map((reason, idx) => (
-                                      <span key={idx} className="matched-place">{reason}</span>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
                               
                               {guide.matched_places && guide.matched_places.length > 0 && (
                                 <div className="matched-places">
@@ -659,7 +959,7 @@ const ItineraryPage = () => {
                               <div className="guide-contact">
                                 {guide.contact_number && (
                                   <a href={`tel:${guide.contact_number}`} className="btn btn-outline">
-                                    📞 Call {guide.contact_number}
+                                    <FaPhone /> Call {guide.contact_number}
                                   </a>
                                 )}
                                 <button 
@@ -667,7 +967,7 @@ const ItineraryPage = () => {
                                   className="btn btn-primary"
                                   disabled={loading}
                                 >
-                                  {loading ? 'Booking...' : '📅 Book This Guide'}
+                                  {loading ? 'Booking...' : <><FaCalendarAlt /> Book This Guide</>}
                                 </button>
                               </div>
                             </div>
@@ -700,7 +1000,7 @@ const ItineraryPage = () => {
                           </div>
                           <div className="booking-card-body">
                             {booking.quoted_price && (
-                              <p className="booking-card-price"><strong>Quoted price:</strong> {booking.quoted_price}</p>
+                              <p className="booking-card-price"><strong>Quoted price:</strong> {booking.currency || 'LKR'} {booking.quoted_price}</p>
                             )}
                             {booking.notes && <p className="booking-card-note"><strong>Note:</strong> {booking.notes}</p>}
                             {booking.status === 'pending' && <p className="booking-card-info">Waiting for the guide to reply.</p>}
@@ -744,35 +1044,89 @@ const ItineraryPage = () => {
                               {expandedBookingId === booking.id ? 'Hide Messages' : 'Message / Conversation'}
                             </button>
                             {expandedBookingId === booking.id && (
-                              <div className="booking-message-section">
-                                <h4>Message Your Guide</h4>
-                                <textarea
-                                  rows={3}
-                                  value={messageTextByBooking[booking.id] || ''}
-                                  onChange={(e) => setMessageTextByBooking(prev => ({
-                                    ...prev,
-                                    [booking.id]: e.target.value
-                                  }))}
-                                  placeholder="Ask for clarification, share a note, or confirm details..."
-                                  className="booking-message-textarea"
-                                />
-                                <button type="button" className="btn btn-secondary btn-sm booking-message-send" onClick={() => handleSendBookingMessage(booking.id)}>Send Message</button>
+                               <div style={{ marginTop: '20px', padding: '16px', backgroundColor: 'rgba(0,0,0,0.1)', borderRadius: '16px', border: '1px solid var(--border)' }}>
+                                 <h4 style={{ margin: '0 0 16px 0', fontSize: '0.9rem', color: 'var(--text-head)', fontWeight: '800' }}>Messenger Channel</h4>
+                                 
+                                 {bookingMessagesByBooking[booking.id]?.length > 0 && (
+                                   <div style={{ marginBottom: '15px' }}>
+                                     <div style={{ 
+                                       maxHeight: '200px', 
+                                       overflowY: 'auto', 
+                                       display: 'flex', 
+                                       flexDirection: 'column', 
+                                       gap: '10px', 
+                                       paddingRight: '8px',
+                                       paddingBottom: '5px'
+                                     }}>
+                                       {bookingMessagesByBooking[booking.id].map(m => (
+                                         <div key={m.id} style={{ 
+                                           padding: '10px 12px', 
+                                           backgroundColor: m.author_email === user.email ? 'rgba(79, 70, 229, 0.15)' : 'var(--bg-card)', 
+                                           borderRadius: '12px', 
+                                           border: '1px solid var(--border)',
+                                           alignSelf: m.author_email === user.email ? 'flex-end' : 'flex-start',
+                                           maxWidth: '85%',
+                                           boxShadow: '0 2px 5px rgba(0,0,0,0.05)'
+                                         }}>
+                                           <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '4px', display: 'flex', justifyContent: 'space-between', gap: '15px' }}>
+                                             <strong style={{ color: m.author_email === user.email ? 'var(--primary)' : 'var(--text-muted)' }}>
+                                               {m.author_email === user.email ? 'ME' : 'GUIDE'}
+                                             </strong>
+                                             <span>{new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                           </div>
+                                           <div style={{ color: 'var(--text-body)', fontSize: '0.85rem', lineHeight: '1.4' }}>{m.message}</div>
+                                         </div>
+                                       ))}
+                                     </div>
+                                   </div>
+                                 )}
 
-                                {bookingMessagesByBooking[booking.id]?.length > 0 && (
-                                  <div className="booking-conversation">
-                                    <h5>Conversation</h5>
-                                    {bookingMessagesByBooking[booking.id].map((msg) => (
-                                      <div key={msg.id} className="booking-message-item">
-                                        <div className="booking-message-author">
-                                          <strong>{msg.author_email === user.email ? 'You' : msg.author_email || 'Guide'}</strong> • {new Date(msg.created_at).toLocaleString()}
-                                        </div>
-                                        <div className="booking-message-text">{msg.message}</div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            )}
+                                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                   <input
+                                     type="text"
+                                     value={messageTextByBooking[booking.id] || ''}
+                                     onChange={(e) => setMessageTextByBooking(prev => ({
+                                       ...prev,
+                                       [booking.id]: e.target.value
+                                     }))}
+                                     onKeyDown={(e) => {
+                                       if (e.key === 'Enter') {
+                                         e.preventDefault();
+                                         handleSendBookingMessage(booking.id);
+                                       }
+                                     }}
+                                     placeholder="Write to your guide..."
+                                     style={{ 
+                                       flex: 1,
+                                       padding: '10px 14px', 
+                                       borderRadius: '12px', 
+                                       border: '1px solid var(--border)', 
+                                       backgroundColor: 'var(--bg-page)',
+                                       color: 'var(--text-body)',
+                                       outline: 'none',
+                                       fontSize: '0.9rem'
+                                     }}
+                                   />
+                                   <button
+                                     type="button"
+                                     className="btn btn-primary"
+                                     style={{ 
+                                       height: '40px', 
+                                       width: '40px', 
+                                       borderRadius: '50%', 
+                                       display: 'flex', 
+                                       alignItems: 'center', 
+                                       justifyContent: 'center',
+                                       padding: 0,
+                                       boxShadow: '0 4px 12px rgba(79, 70, 229, 0.2)'
+                                     }}
+                                     onClick={() => handleSendBookingMessage(booking.id)}
+                                   >
+                                     <FaPaperPlane style={{ fontSize: '0.9rem' }} />
+                                   </button>
+                                 </div>
+                               </div>
+                             )}
                           </div>
                         </div>
                       ))}
@@ -780,20 +1134,7 @@ const ItineraryPage = () => {
                   </div>
                 )}
 
-                <div className="itinerary-actions">
-                  <button 
-                    onClick={handleRequestGuides} 
-                    className="btn btn-success confirm-btn" 
-                    disabled={loading || loadingGuides || !selectedItinerary.places?.length}
-                  >
-                    {loadingGuides
-                      ? '🔍 Finding Guides...'
-                      : noGuidesFound
-                        ? 'Browse All Guides'
-                        : '🎯 Find Suitable Guides'
-                    }
-                  </button>
-                </div>
+
 
                 {pendingPlaceToAddId && itineraries.length > 1 && (
                   <div className="add-linked-place-panel">
@@ -822,75 +1163,63 @@ const ItineraryPage = () => {
                     {placeAddError && <p className="error">{placeAddError}</p>}
                   </div>
                 )}
-
-                {/* ADD PLACE LOGIC */}
-                <div className="itinerary-places">
-                  <h3>Places</h3>
-                  {showAddPlaceDropdown && !isLinkingPlace && (
-                    <div className="add-place-section">
-                      <div className="add-place-header">
-                        <h3>Add a Place</h3>
-                        <button onClick={() => { setShowAddPlaceDropdown(false); setSearchPlaceTerm(''); }} className="add-place-close">✕</button>
-                      </div>
-                      <div className="place-search-wrapper">
-                        <span className="place-search-icon">🔍</span>
-                        <input
-                          type="text"
-                          placeholder="Search by name or category…"
-                          value={searchPlaceTerm}
-                          onChange={(e) => setSearchPlaceTerm(e.target.value)}
-                          className="place-search-input"
-                          autoFocus
-                        />
-                        {searchPlaceTerm && (
-                          <button className="place-search-clear" onClick={() => setSearchPlaceTerm('')}>✕</button>
-                        )}
-                      </div>
-                      <div className="place-suggestions">
-                        {filteredPlaces.length === 0 ? (
-                          <div className="place-suggestions__empty">No places match "{searchPlaceTerm}"</div>
-                        ) : (
-                          filteredPlaces.map(p => (
-                            <button
-                              key={p.id}
-                              className="place-suggestion-card"
-                              onClick={() => handleAddPlaceToItinerary(selectedItinerary.id, p.id)}
-                            >
-                              <div className="place-suggestion-img-wrap">
-                                {p.image_url
-                                  ? <img src={p.image_url} alt={p.name} className="place-suggestion-img" />
-                                  : <div className="place-suggestion-img-placeholder">🏞️</div>
-                                }
-                              </div>
-                              <div className="place-suggestion-info">
-                                <span className="place-suggestion-name">{p.name}</span>
-                                {p.category && <span className="place-suggestion-cat">{p.category}</span>}
-                              </div>
-                              <span className="place-suggestion-add">+</span>
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {selectedItinerary.places?.map((item, index) => (
-                    <div key={item.id || index} className="place-item">
-                      <div className="place-order">{index + 1}</div>
-                      <div className="place-details"><h4>{item.name}</h4></div>
-                      <button onClick={() => handleRemovePlace(selectedItinerary.id, item.place_id)} className="btn btn-danger btn-sm">Remove</button>
-                    </div>
-                  ))}
-                  
-                  {!showAddPlaceDropdown && (
-                    <button onClick={() => setShowAddPlaceDropdown(true)} className="btn btn-success add-btn-main">+ Add Another Place</button>
-                  )}
-                </div>
               </div>
-            ) : <div className="empty-itinerary"><h3>No Itinerary Selected</h3></div>}
+            ) : (
+              <div className="empty-itinerary">
+                <h3>No Itinerary Selected</h3>
+              </div>
+            )}
           </section>
         </div>
       </div>
+      {/* Create Itinerary Modal */}
+      {showCreateModal && (
+        <div className="review-modal-overlay" onClick={() => setShowCreateModal(false)}>
+          <div className="review-modal-content" onClick={e => e.stopPropagation()}>
+            <button className="modal-close-btn" onClick={() => setShowCreateModal(false)}>
+              <FaTimes />
+            </button>
+            <div className="create-itinerary-modal">
+              <h3 style={{ fontSize: '1.8rem', fontWeight: 900, color: 'var(--text-head)', marginBottom: '32px', letterSpacing: '-0.02em' }}>Create New Itinerary</h3>
+              <form onSubmit={handleCreateItinerary} className="review-form">
+                <div className="form-group">
+                  <label>Itinerary Title</label>
+                  <input 
+                    type="text" 
+                    placeholder="e.g. Summer Vacation, Weekend Getaway" 
+                    value={newItinerary.title} 
+                    onChange={(e) => setNewItinerary({...newItinerary, title: e.target.value})} 
+                    required 
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '20px' }}>
+                  <div className="form-group" style={{ flex: 1 }}>
+                    <label>Start Date</label>
+                    <input 
+                      type="date" 
+                      min={today} 
+                      value={newItinerary.startDate} 
+                      onChange={(e) => setNewItinerary({...newItinerary, startDate: e.target.value})} 
+                    />
+                  </div>
+                  <div className="form-group" style={{ flex: 1 }}>
+                    <label>End Date</label>
+                    <input 
+                      type="date" 
+                      min={newItinerary.startDate || today} 
+                      value={newItinerary.endDate} 
+                      onChange={(e) => setNewItinerary({...newItinerary, endDate: e.target.value})} 
+                    />
+                  </div>
+                </div>
+                <button type="submit" className="btn btn-primary btn-large" style={{ marginTop: '20px', borderRadius: '12px' }}>
+                  <FaPlus /> Create Itinerary
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 };

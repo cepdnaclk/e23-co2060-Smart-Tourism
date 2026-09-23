@@ -1,18 +1,9 @@
-<<<<<<< HEAD
-import React, { useCallback, useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { usePlace } from '../context/PlaceContext';
-import { useAuth } from '../context/AuthContext';
-import ReviewForm from '../components/ReviewForm';
-import { reviewService } from '../services';
-=======
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { usePlace } from '../context/PlaceContext';
 import { useAuth } from '../context/AuthContext';
 import ReviewSection from '../components/ReviewSection';
 import { FaMapMarkerAlt, FaPlus, FaStar } from 'react-icons/fa';
->>>>>>> f9f936a (Refactor components by removing unused variables and imports for improved code clarity)
 import './PlaceDetailPage.css';
 
 const PlaceDetailPage = () => {
@@ -20,57 +11,51 @@ const PlaceDetailPage = () => {
   const { getPlaceById, loading: placesLoading } = usePlace();
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [place, setPlace] = useState(null);
-<<<<<<< HEAD
-  const [reviews, setReviews] = useState([]);
-  const [reviewsLoading, setReviewsLoading] = useState(false);
-=======
   const [imageUrl, setImageUrl] = useState(location.state?.passedImageUrl || null);
   const [, setShowReviewModal] = useState(false);
->>>>>>> f9f936a (Refactor components by removing unused variables and imports for improved code clarity)
 
-  const fetchReviews = useCallback(async () => {
-    try {
-      setReviewsLoading(true);
-      const response = await reviewService.getPlaceReviews(id);
-      setReviews(response.data.reviews || []);
-    } catch (error) {
-      console.error('Failed to fetch reviews:', error);
-    } finally {
-      setReviewsLoading(false);
+  useEffect(() => {
+    if (place) {
+      // If we didn't get a passed image from navigation state, fetch one
+      if (!imageUrl) {
+        if (!place.image_url || place.image_url.includes('unsplash.com')) {
+          const fetchWikiImage = async () => {
+            try {
+              // Increased pithumbsize to 2000 for high-resolution hero impact
+              const res = await fetch(`https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(place.name)}&prop=pageimages&format=json&pithumbsize=2000&origin=*`);
+              const data = await res.json();
+              const pages = data.query.pages;
+              const pageId = Object.keys(pages)[0];
+              if (pageId !== "-1" && pages[pageId].thumbnail) {
+                setImageUrl(pages[pageId].thumbnail.source);
+              } else {
+                setImageUrl('https://images.unsplash.com/photo-1529253355930-ddbe423a2ac7?ixlib=rb-1.2.1&auto=format&fit=crop&w=2000&q=80');
+              }
+            } catch (err) {
+              console.error('Wiki fetch error:', err);
+            }
+          };
+          fetchWikiImage();
+        } else {
+          setImageUrl(place.image_url);
+        }
+      }
     }
-  }, [id]);
+  }, [place, imageUrl]);
+
+
 
   useEffect(() => {
     const foundPlace = getPlaceById(id);
     if (foundPlace) {
       setPlace(foundPlace);
-      fetchReviews();
     }
-  }, [id, getPlaceById, fetchReviews]);
+  }, [id, getPlaceById]);
 
-  const handleReviewSubmit = async (formData) => {
-    if (!isAuthenticated()) {
-      navigate('/login');
-      return;
-    }
 
-    try {
-      const response = await reviewService.createReview(id, {
-        ...formData,
-        tourist_id: user?.id
-      });
-      setReviews([...reviews, response.data.review]);
-      return { success: true };
-    } catch (error) {
-      console.error('Failed to submit review:', error);
-      return { 
-        success: false, 
-        error: error.response?.data?.error || 'Failed to submit review' 
-      };
-    }
-  };
 
   if (placesLoading) {
     return <main className="loading">Loading place details...</main>;
@@ -96,30 +81,57 @@ const PlaceDetailPage = () => {
           ← Back to Places
         </button>
 
-        <div className="place-detail-header">
-          {place.image_url && (
-            <div className="place-hero-image">
-              <img src={place.image_url} alt={place.name} />
+        <div className="place-detail-main">
+          {imageUrl && (
+            <div className="place-side-image">
+              <img src={imageUrl} alt={place.name} />
             </div>
           )}
-        </div>
 
-        <div className="place-detail-content">
           <div className="place-info">
             <h1>{place.name}</h1>
             
-            {place.category && (
-              <span className="category-badge">{place.category}</span>
-            )}
-
-            {place.rating && (
-              <p className="rating-display">⭐ Rating: {parseFloat(place.rating).toFixed(1)}/5</p>
-            )}
+            <div className="place-badges">
+              {place.category && (
+                <span className="category-badge">{place.category}</span>
+              )}
+              {place.rating && (
+                <span className="rating-badge">⭐ {parseFloat(place.rating).toFixed(1)}</span>
+              )}
+              <button 
+                onClick={() => navigate('/itinerary?add=' + place.id)}
+                className="itinerary-badge"
+              >
+                <FaPlus /> Add to Itinerary
+              </button>
+              <button 
+                onClick={() => isAuthenticated() ? setShowReviewModal(true) : navigate('/login')}
+                className="review-badge-btn"
+                style={{
+                  padding: '6px 16px',
+                  borderRadius: '999px',
+                  fontSize: '0.85rem',
+                  fontWeight: '700',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.03em',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  backgroundColor: '#6366f1',
+                  color: 'white',
+                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                }}
+              >
+                <FaStar /> Add Review
+              </button>
+            </div>
 
             <div className="place-meta">
               {place.latitude && place.longitude && (
-                <p>
-                  📍 <strong>Location:</strong> {parseFloat(place.latitude).toFixed(4)}, {parseFloat(place.longitude).toFixed(4)}
+                <p className="location-text">
+                  <FaMapMarkerAlt /> <strong>Location:</strong> {parseFloat(place.latitude).toFixed(4)}, {parseFloat(place.longitude).toFixed(4)}
                 </p>
               )}
             </div>
@@ -128,55 +140,14 @@ const PlaceDetailPage = () => {
               <h2>About this Place</h2>
               <p>{place.description}</p>
             </div>
-
-            <button 
-              onClick={() => navigate('/itinerary?add=' + place.id)}
-              className="btn btn-success btn-large"
-            >
-              Add to My Itinerary
-            </button>
-          </div>
-
-          {/* Reviews Section */}
-          <div className="reviews-section">
-            <h2>Visitor Reviews</h2>
-
-            {isAuthenticated() && (
-              <ReviewForm onSubmit={handleReviewSubmit} />
-            )}
-
-            {!isAuthenticated() && (
-              <div className="login-prompt">
-                <p>Please login to leave a review</p>
-                <button onClick={() => navigate('/login')} className="btn btn-primary">
-                  Login
-                </button>
-              </div>
-            )}
-
-            <div className="reviews-list">
-              {reviewsLoading ? (
-                <p className="loading">Loading reviews...</p>
-              ) : reviews.length > 0 ? (
-                reviews.map(review => (
-                  <div key={review.id} className="review-item">
-                    <div className="review-header">
-                      <strong>{review.title}</strong>
-                      <span className="review-rating">⭐ {review.rating}/5</span>
-                    </div>
-                    <p className="review-text">{review.comment}</p>
-                    <small className="review-meta">
-                      By {review.user_email} on {new Date(review.created_at).toLocaleDateString()}
-                    </small>
-                  </div>
-                ))
-              ) : (
-                <p className="no-reviews">No reviews yet. Be the first to review!</p>
-              )}
-            </div>
           </div>
         </div>
+
+        <div className="place-detail-content">
+          <ReviewSection targetId={id} type="place" />
+        </div>
       </div>
+
     </main>
   );
 };

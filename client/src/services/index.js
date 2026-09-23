@@ -53,7 +53,7 @@ export const bookingService = {
   createBooking: (data) => API.post('/api/bookings', data),
   getGuideBookings: (guideId) => API.get(`/api/bookings/guide/${guideId}`),
   getTouristBookings: (touristId) => API.get(`/api/bookings/tourist/${touristId}`),
-  quotePrice: (bookingId, price) => API.put(`/api/bookings/${bookingId}/quote`, { price }),
+  quotePrice: (bookingId, price, currency) => API.put(`/api/bookings/${bookingId}/quote`, { price, currency }),
   acceptQuote: (bookingId) => API.put(`/api/bookings/${bookingId}/accept`),
   rejectQuote: (bookingId) => API.put(`/api/bookings/${bookingId}/reject`),
   cancelBooking: (bookingId, data = {}) => API.put(`/api/bookings/${bookingId}/cancel`, data),
@@ -67,8 +67,12 @@ export const bookingService = {
 export const reviewService = {
   getPlaceReviews: (placeId) => API.get(`/api/places/${placeId}/reviews`),
   createReview: (placeId, data) => API.post(`/api/places/${placeId}/reviews`, data),
+  deletePlaceReview: (placeId, reviewId) => API.delete(`/api/places/${placeId}/reviews/${reviewId}`),
+  getGuideReviews: (guideId) => API.get(`/api/guides/${guideId}/reviews`),
+  createGuideReview: (guideId, data) => API.post(`/api/guides/${guideId}/reviews`, data),
+  deleteGuideReview: (guideId, reviewId) => API.delete(`/api/guides/${guideId}/reviews/${reviewId}`),
   updateReview: (reviewId, data) => API.put(`/api/reviews/${reviewId}`, data),
-  deleteReview: (reviewId) => API.delete(`/api/reviews/${reviewId}`)
+  deleteReview: (reviewId) => API.delete(`/api/reviews/${reviewId}`) // Keep for legacy
 };
 
 // Profile Services
@@ -87,8 +91,14 @@ export const profileService = {
     return API.post(`/api/users/${userId}/profile`, data);
   },
 
+  // Delete user account permanently
+  deleteAccount: (userId) => API.delete(`/api/users/${userId}/account`),
+
   // legacy helper if you ever need to fetch by profile id directly
-  getProfileById: (userId) => API.get(`/api/profiles/${userId}`)
+  getProfileById: (userId) => API.get(`/api/profiles/${userId}`),
+
+  // Get dashboard statistics for a user
+  getUserStats: (userId) => API.get(`/api/users/${userId}/stats`)
 };
 
 // System Services

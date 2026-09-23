@@ -25,6 +25,11 @@ export const AuthProvider = ({ children }) => {
     try {
       setLoading(true);
       const response = await API.post('/api/auth/login', { email, password });
+      
+      if (response.data.requires_otp) {
+        return { success: true, requires_otp: true, email: response.data.email };
+      }
+
       const { user: userData, token: authToken } = response.data;
       
       setUser(userData);
@@ -54,11 +59,49 @@ export const AuthProvider = ({ children }) => {
         ...additionalData
       });
       
-      return { success: true, user: response.data.user };
+      return { success: true, message: response.data.message };
     } catch (error) {
       return { 
         success: false, 
         error: error.response?.data?.error || 'Registration failed' 
+      };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const verifyEmail = async (email, code) => {
+    try {
+      setLoading(true);
+      const response = await API.post('/api/auth/verify-email', { email, code });
+      return { success: true, user: response.data.user };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error.response?.data?.error || 'Verification failed' 
+      };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const verifyAdminLogin = async (email, code) => {
+    try {
+      setLoading(true);
+      const response = await API.post('/api/auth/verify-login', { email, code });
+      const { user: userData, token: authToken } = response.data;
+      
+      setUser(userData);
+      setToken(authToken);
+      localStorage.setItem('user', JSON.stringify(userData));
+      localStorage.setItem('token', authToken);
+      API.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
+      
+      return { success: true, user: userData };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error.response?.data?.error || 'Verification failed' 
       };
     } finally {
       setLoading(false);
@@ -85,6 +128,8 @@ export const AuthProvider = ({ children }) => {
     loading,
     login,
     register,
+    verifyEmail,
+    verifyAdminLogin,
     logout,
     isAuthenticated
   };
