@@ -601,13 +601,27 @@ const ItineraryPage = () => {
                                 <h4>{guide.full_name}</h4>
                                 <div className="guide-specialization">
                                   {guide.specialization && <span className="badge">{guide.specialization}</span>}
-                                  <span className="experience">{guide.experience_years} years experience</span>
+                                  <span className="experience">{guide.experience_years || 0} years experience</span>
                                 </div>
                               </div>
                             </div>
                             
                             <div className="guide-details">
                               {guide.bio && <p className="guide-bio">{guide.bio}</p>}
+
+                              <div className="guide-rating-strip" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
+                                <span className="badge" style={{ background: 'rgba(245, 158, 11, 0.12)', color: '#b45309' }}>
+                                  {guide.average_rating ? `${Number(guide.average_rating).toFixed(1)}/5` : 'New guide'}
+                                </span>
+                                <span className="badge" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#047857' }}>
+                                  {guide.review_count || 0} reviews
+                                </span>
+                                {guide.is_approved && (
+                                  <span className="badge" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#1d4ed8' }}>
+                                    Verified
+                                  </span>
+                                )}
+                              </div>
                               
                               <div className="guide-stats">
                                 <div className="stat">
@@ -619,6 +633,17 @@ const ItineraryPage = () => {
                                   <span className="stat-value">LKR {guide.hourly_rate}/hour</span>
                                 </div>
                               </div>
+                              
+                              {guide.match_reasons && guide.match_reasons.length > 0 && (
+                                <div className="matched-places" style={{ marginTop: '12px' }}>
+                                  <span className="match-label">Why this guide fits:</span>
+                                  <div className="matched-places-list">
+                                    {guide.match_reasons.slice(0, 3).map((reason, idx) => (
+                                      <span key={idx} className="matched-place">{reason}</span>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
                               
                               {guide.matched_places && guide.matched_places.length > 0 && (
                                 <div className="matched-places">

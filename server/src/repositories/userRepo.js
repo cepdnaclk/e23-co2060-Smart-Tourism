@@ -124,7 +124,6 @@ const getAllGuides = async () => {
 // Suggest guides based on itinerary places
 const suggestGuidesForItinerary = async (itineraryId) => {
     try {
-        // First, get all places in the itinerary
         const placesQuery = `
             SELECT p.name, p.category
             FROM itinerary_items ii
@@ -139,66 +138,95 @@ const suggestGuidesForItinerary = async (itineraryId) => {
             return [];
         }
 
-        // Get place names for matching
         const placeNames = places.map(p => p.name.toLowerCase());
-        const placeCategories = [...new Set(places.map(p => p.category))]; // Unique categories
+        const placeCategories = [...new Set(places.map(p => p.category))];
 
-        // Find guides whose covered_locations match the places
         const guidesQuery = `
             SELECT gp.*, u.email,
-                   CASE WHEN gp.covered_locations IS NOT NULL THEN 1 ELSE 0 END as has_locations
+                   CASE WHEN gp.covered_locations IS NOT NULL THEN 1 ELSE 0 END as has_locations,
+                   COALESCE(AVG(gr.rating), 0) AS average_rating,
+                   COUNT(gr.id) AS review_count
             FROM guide_profiles gp
             JOIN users u ON gp.user_id = u.id
+            LEFT JOIN guide_reviews gr ON gp.user_id = gr.guide_id
             WHERE u.role = 'guide'
+            GROUP BY gp.id, u.id
         `;
         const guidesResult = await db.query(guidesQuery);
         const allGuides = guidesResult.rows;
 
-        // Filter and score guides based on location coverage
         const scoredGuides = allGuides.map(guide => {
             let score = 0;
             let matchedPlaces = [];
+            const matchReasons = [];
 
-            if (guide.covered_locations) {
-                const coveredLocations = guide.covered_locations.toLowerCase().split(',').map(loc => loc.trim());
+            const coveredLocations = guide.covered_locations
+                ? guide.covered_locations.toLowerCase().split(',').map(loc => loc.trim()).filter(Boolean)
+                : [];
 
-                // Check for exact place name matches
-                placeNames.forEach(placeName => {
-                    if (coveredLocations.some(loc => loc.includes(placeName) || placeName.includes(loc))) {
-                        score += 10; // High score for direct place match
-                        matchedPlaces.push(placeName);
-                    }
-                });
-
-                // Check for category specialization match
-                if (guide.specialization && placeCategories.includes(guide.specialization)) {
-                    score += 5;
+            placeNames.forEach(placeName => {
+                const directMatch = coveredLocations.some(loc => loc.includes(placeName) || placeName.includes(loc));
+                if (directMatch) {
+                    score += 18;
+                    matchedPlaces.push(placeName);
+                    matchReasons.push(`Matches ${placeName}`);
                 }
+            });
 
-                // Bonus for experience
-                if (guide.experience_years) {
-                    score += Math.min(guide.experience_years, 10); // Max 10 points for experience
-                }
+            if (guide.specialization && placeCategories.includes(guide.specialization)) {
+                score += 12;
+                matchReasons.push(`Specializes in ${guide.specialization}`);
             }
+
+            if (guide.experience_years) {
+                const experienceBoost = Math.min(guide.experience_years * 2, 20);
+                score += experienceBoost;
+                matchReasons.push(`${guide.experience_years} years of tour experience`);
+            }
+
+            if (guide.average_rating) {
+                const ratingBoost = Number(guide.average_rating) * 8;
+                score += ratingBoost;
+                matchReasons.push(`Rated ${Number(guide.average_rating).toFixed(1)}/5 by travelers`);
+            }
+
+            if (guide.review_count) {
+                score += Math.min(Number(guide.review_count) * 1.5, 8);
+            }
+
+            if (guide.languages) {
+                score += Math.min(guide.languages.split(',').length * 2, 8);
+            }
+
+            if (guide.is_approved) {
+                score += 5;
+            }
+
+            const normalizedScore = Math.round(score * 10) / 10;
 
             return {
                 ...guide,
-                match_score: score,
-                matched_places: matchedPlaces,
-                covered_locations_array: guide.covered_locations ? guide.covered_locations.split(',').map(loc => loc.trim()) : []
+                match_score: normalizedScore,
+                matched_places: [...new Set(matchedPlaces)],
+                match_reasons: [...new Set(matchReasons)],
+                covered_locations_array: coveredLocations,
+                average_rating: Number(guide.average_rating || 0),
+                review_count: Number(guide.review_count || 0),
+                experience_years: Number(guide.experience_years || 0)
             };
         });
 
         const suggestedGuides = scoredGuides
-          .filter(guide => guide.matched_places.length > 0)
-          .sort((a, b) => {
-              // Primary sort: number of matched places (descending)
-              if (b.matched_places.length !== a.matched_places.length) {
-                  return b.matched_places.length - a.matched_places.length;
-              }
-              // Secondary sort: match score (descending)
-              return b.match_score - a.match_score;
-          });
+            .filter(guide => guide.matched_places.length > 0 || guide.match_score > 0)
+            .sort((a, b) => {
+                if (b.match_score !== a.match_score) {
+                    return b.match_score - a.match_score;
+                }
+                if ((b.experience_years || 0) !== (a.experience_years || 0)) {
+                    return (b.experience_years || 0) - (a.experience_years || 0);
+                }
+                return (b.average_rating || 0) - (a.average_rating || 0);
+            });
 
         return suggestedGuides;
     } catch (error) {
