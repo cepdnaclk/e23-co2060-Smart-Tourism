@@ -125,13 +125,18 @@
     "dev": "nodemon src/app.js",
     "db:migrate": "node src/database/runMigrations.js",
     "db:seed": "node src/database/seedData.js",
-    "db:reset": "node src/database/resetDb.js"
+    "db:reset": "node src/database/resetDb.js",
+    "test": "jest --detectOpenHandles --forceExit",
+    "test:unit": "jest __tests__/unit --detectOpenHandles --forceExit",
+    "test:integration": "jest __tests__/integration --runInBand --detectOpenHandles --forceExit"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "nodemon": "^3.1.14"
+    "jest": "^29.7.0",
+    "nodemon": "^3.1.14",
+    "supertest": "^6.3.4"
   },
   "type": "commonjs"
 }
