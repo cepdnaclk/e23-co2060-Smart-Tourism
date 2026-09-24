@@ -4,3 +4,8 @@ node_modules/
 build/
 dist/
 *.log
+
+# Generated presentation, image, and temporary build files
+/output/
+/tmp/
+/.codex-finalizer/
