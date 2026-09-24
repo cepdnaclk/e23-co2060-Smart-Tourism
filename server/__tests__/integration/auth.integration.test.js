@@ -22,27 +22,28 @@ const uniqueEmail = `test_${Date.now()}@smarttourism.test`;
 describe("POST /api/auth/register", () => {
   test("registers a new tourist successfully", async () => {
     const res = await request(app).post("/api/auth/register").send({
-      name: "CI Test User",
+      full_name: "CI Test User",
       email: uniqueEmail,
       password: "Test@12345",
       role: "tourist",
     });
 
-    // Accept 201 Created or 200 OK
-    expect([200, 201]).toContain(res.status);
-    expect(res.body).toHaveProperty("token");
+    expect(res.status).toBe(201);
+    expect(res.body.user).toEqual(expect.objectContaining({
+      id: expect.any(Number), email: uniqueEmail, role: "tourist",
+    }));
   });
 
   test("rejects duplicate registration", async () => {
     await request(app).post("/api/auth/register").send({
-      name: "CI Test User",
+      full_name: "CI Test User",
       email: uniqueEmail,
       password: "Test@12345",
       role: "tourist",
     });
 
     const res = await request(app).post("/api/auth/register").send({
-      name: "CI Test User",
+      full_name: "CI Test User",
       email: uniqueEmail,
       password: "Test@12345",
       role: "tourist",
