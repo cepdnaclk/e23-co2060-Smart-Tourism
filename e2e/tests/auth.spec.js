@@ -15,37 +15,36 @@ test.describe("Auth – Register flow", () => {
   test("user can register a new account", async ({ page }) => {
     await page.goto("/");
 
-    // Look for a register / sign-up link; adjust selector to match your app
+    // Follow the registration link as a visitor would.
     const registerLink = page
       .locator("a, button")
       .filter({ hasText: /register|sign up|create account/i })
       .first();
 
-    // Only run the rest if the element exists; skip gracefully otherwise
-    if ((await registerLink.count()) === 0) {
-      test.skip(true, "Register link not found — update selector");
-    }
-
+    await expect(registerLink).toBeVisible();
     await registerLink.click();
 
-    // Fill in the form (adjust field selectors to match your actual HTML)
-    await page
-      .locator('input[name="name"], input[placeholder*="name" i]')
-      .first()
-      .fill(testUser.name);
-    await page
-      .locator('input[type="email"], input[name="email"]')
-      .first()
-      .fill(testUser.email);
-    await page
-      .locator('input[type="password"], input[name="password"]')
-      .first()
-      .fill(testUser.password);
+    await expect(page).toHaveURL(/\/register$/);
+    await page.locator('#role').selectOption('tourist');
+    await page.getByLabel('Full Name', { exact: true }).fill(testUser.name);
+    await page.getByLabel('Email Address', { exact: true }).fill(testUser.email);
+    await page.getByLabel('Contact Number', { exact: true }).fill('+94771234567');
+    await page.locator('#password').fill(testUser.password);
+    await page.getByLabel('Confirm Password', { exact: true }).fill(testUser.password);
 
+    const registrationResponse = page.waitForResponse(response =>
+      response.url().endsWith('/api/auth/register') &&
+      response.request().method() === 'POST'
+    );
     await page.locator('button[type="submit"]').click();
+    const response = await registrationResponse;
+    expect(response.status()).toBe(201);
+    expect(await response.json()).toMatchObject({
+      user: { email: testUser.email, role: 'tourist' },
+    });
 
-    // After registration we expect to land on a dashboard or home page
-    await expect(page).not.toHaveURL(/register/i, { timeout: 10000 });
+    // Registration logs the new tourist in and opens their dashboard.
+    await expect(page).toHaveURL(/\/dashboard$/, { timeout: 10000 });
   });
 });
 
