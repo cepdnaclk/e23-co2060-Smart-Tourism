@@ -113,6 +113,11 @@ const Navbar = () => {
                     </Link>
                   </li>
                   <li>
+                    <Link to="/admin-dashboard?tab=places" className="nav-link">
+                      <FaMapMarkerAlt /> Locations
+                    </Link>
+                  </li>
+                  <li>
                     <Link to="/admin-dashboard?tab=guides" className="nav-link">
                       <FaMapMarkedAlt /> Travel Guides
                     </Link>

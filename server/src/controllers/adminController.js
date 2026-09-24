@@ -119,9 +119,23 @@ const deleteGuideComment = async (req, res) => {
     }
 };
 
+// --- Places ---
+const updatePlaceImage = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { image_url } = req.body;
+        await db.query('UPDATE places SET image_url = $1 WHERE id = $2', [image_url, id]);
+        res.status(200).json({ message: 'Place image updated successfully' });
+    } catch (error) {
+        console.error('Error updating place image:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
 module.exports = {
     getTourists, deleteTourist,
     getGuides, deleteGuide,
     getPlaceComments, deletePlaceComment,
-    getGuideComments, deleteGuideComment
+    getGuideComments, deleteGuideComment,
+    updatePlaceImage
 };

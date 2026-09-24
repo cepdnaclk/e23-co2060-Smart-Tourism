@@ -12,6 +12,7 @@ const AdminDashboard = () => {
   const [commentsSubTab, setCommentsSubTab] = useState('places');
   const [tourists, setTourists] = useState([]);
   const [guides, setGuides] = useState([]);
+  const [places, setPlaces] = useState([]);
   const [placeComments, setPlaceComments] = useState([]);
   const [guideComments, setGuideComments] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -31,6 +32,9 @@ const AdminDashboard = () => {
         const response = await API.get(endpoint);
         if (commentsSubTab === 'places') setPlaceComments(response.data.comments);
         if (commentsSubTab === 'guides') setGuideComments(response.data.comments);
+      } else if (tab === 'places') {
+        const response = await API.get('/api/places');
+        setPlaces(response.data.data);
       } else {
         const endpoint = `/api/admin/${tab}`;
         const response = await API.get(endpoint);
@@ -58,6 +62,18 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleUpdateImage = async (id, currentUrl) => {
+    const newUrl = window.prompt("Enter new image URL:", currentUrl || '');
+    if (newUrl !== null && newUrl !== currentUrl) {
+      try {
+        await API.put(`/api/admin/places/${id}/image`, { image_url: newUrl });
+        fetchData('places');
+      } catch (err) {
+        setError('Failed to update image.');
+      }
+    }
+  };
+
   return (
     <div className="admin-dashboard">
       <div className="admin-header">
@@ -70,7 +86,7 @@ const AdminDashboard = () => {
       {error && <div className="admin-error">{error}</div>}
 
       <div className="admin-content">
-        {(activeTab === 'tourists' || activeTab === 'guides') && (
+        {(activeTab === 'tourists' || activeTab === 'guides' || activeTab === 'places') && (
           <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'flex-end' }}>
             <input 
               type="text" 
@@ -160,6 +176,50 @@ const AdminDashboard = () => {
                     ))}
                     {guides.length === 0 && (
                       <tr><td colSpan="4" style={{textAlign: 'center'}}>No travel guides found.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {activeTab === 'places' && (
+              <div className="table-container">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Name</th>
+                      <th>Category</th>
+                      <th>Image</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {places.filter(p => {
+                      if (!searchId) return true;
+                      const name = (p.name || '').toLowerCase();
+                      const query = searchId.toLowerCase();
+                      return name.includes(query) || p.id.toString() === query;
+                    }).map(p => (
+                      <tr key={p.id}>
+                        <td>{p.id}</td>
+                        <td>{p.name}</td>
+                        <td>{p.category}</td>
+                        <td>
+                          <img src={p.image_url} alt={p.name} style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '4px' }} />
+                        </td>
+                        <td>
+                          <button 
+                            style={{ padding: '6px 12px', background: 'var(--primary-color)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }} 
+                            onClick={() => handleUpdateImage(p.id, p.image_url)}
+                          >
+                            Edit Image
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {places.length === 0 && (
+                      <tr><td colSpan="5" style={{textAlign: 'center'}}>No locations found.</td></tr>
                     )}
                   </tbody>
                 </table>

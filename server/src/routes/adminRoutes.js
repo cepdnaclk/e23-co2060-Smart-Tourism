@@ -16,4 +16,7 @@ router.delete('/comments/places/:id', adminController.deletePlaceComment);
 router.get('/comments/guides', adminController.getGuideComments);
 router.delete('/comments/guides/:id', adminController.deleteGuideComment);
 
+// Places management
+router.put('/places/:id/image', adminController.updatePlaceImage);
+
 module.exports = router;
