@@ -1,0 +1,24 @@
+{
+    "title": "Smart Tourism Management System",
+    "team": [
+    {
+        "name": "K.L.A.Y.R. Kanchana",
+        "email": "e23161@eng.pdn.ac.lk",
+        "eNumber": "E/23/161"
+    },
+    {
+        "name": "K.M.D.S. Kumarasinghe",
+        "email": "e23187@eng.pdn.ac.lk",
+        "eNumber": "E/23/187"
+    },
+    {
+        "name": "K.L.D.H. Liyanagama",
+        "email": "e23202@eng.pdn.ac.lk",
+        "eNumber": "E/23/202"
+    }
+    ],
+    
+    "tags": ["Web Application", "Tourism", "Software Systems Development"],
+    "image":"cover_page.jpg",
+    "thumbnail":"thumbnail.jpg"
+}
