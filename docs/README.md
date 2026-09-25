@@ -7,7 +7,7 @@ title: Smart Tourism Management System
 ---
 
 <!-- Render Mermaid code blocks on the Jekyll project page. GitHub renders them natively. -->
-<script type="module" src="./assets/js/mermaid.js"></script>
+
 
 [comment]: # "This is the standard layout for the project, but you can clean this and use your own template, and add more information required for your own project"
 
