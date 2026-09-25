@@ -6,6 +6,9 @@ repository-name: e23-co2060-Smart-Tourism
 title: Smart Tourism Management System
 ---
 
+<!-- Render Mermaid code blocks on the Jekyll project page. GitHub renders them natively. -->
+<script type="module" src="./assets/js/mermaid.js"></script>
+
 [comment]: # "This is the standard layout for the project, but you can clean this and use your own template, and add more information required for your own project"
 
 <!-- Once you fill the index.json file inside /docs/data, please make sure the syntax is correct. (You can use this tool to identify syntax errors)
